@@ -14,7 +14,10 @@ classdef ExperimentRunner
             obj.N_trials = N_trials;
         end
         
-        function results = run(obj, filter_type)
+        function results = run(obj, filter_type, params)
+            if nargin < 3
+                params.delta = 0.05; % Default confidence level
+            end
             
             results.errors = [];
             results.nees = [];
@@ -27,7 +30,7 @@ classdef ExperimentRunner
                 P0 = eye(4);
                 
                 if strcmp(filter_type, 'robust')
-                    filter = RobustKalmanFilter(obj.dynamics, obj.sensors, x0, P0);
+                    filter = RobustKalmanFilter(obj.dynamics, obj.sensors, x0, P0, params.delta);
                     filter.enable_inflation = true;
                 else
                     filter = KalmanFilter(obj.dynamics, obj.sensors, x0, P0);
