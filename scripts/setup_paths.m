@@ -2,9 +2,12 @@ function setup_paths()
 %SETUP_PATHS Configure path for workspace
 
 % Add Path for folders containing codes
-addpath("classes\");
-addpath("scripts\");
+addpath("noises\");
+addpath("sensors\");
+addpath("filters\");
+addpath("dynamics\");
 addpath("utils\");
+addpath("scripts\");
 
 % Create output directories for results and figures
 if ~exist('results', 'dir') 
