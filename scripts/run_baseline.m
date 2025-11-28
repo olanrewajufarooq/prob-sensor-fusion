@@ -1,7 +1,7 @@
 % Script for baseline experiment
 
 %% Setup
-clear; clc; close all;
+clear; close all;
 
 fprintf("===== Running Baseline Experiment =====\n");
 

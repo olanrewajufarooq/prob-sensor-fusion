@@ -1,5 +1,5 @@
 % Master script to run everything
-clear; clc; close all;
+clear; close all;
 setup_paths();
 
 fprintf('======================================\n');

@@ -1,5 +1,5 @@
 % Generate comprehensive comparison plots across all scenarios
-clear; clc; close all;
+clear; close all;
 setup_paths();
 
 fprintf('=== Generating Comprehensive Comparison Plots ===\n');

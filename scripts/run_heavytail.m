@@ -1,5 +1,5 @@
 % Main script for heavy-tailed noise experiments
-clear; clc; close all;
+clear; close all;
 setup_paths();
 
 fprintf('=== Running Heavy-Tailed Noise Experiments ===\n');

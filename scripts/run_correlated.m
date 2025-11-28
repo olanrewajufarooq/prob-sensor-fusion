@@ -1,5 +1,5 @@
 % Main script for correlated noise experiments
-clear; clc; close all;
+clear; close all;
 setup_paths();
 
 fprintf('=== Running Correlated Noise Experiments ===\n');

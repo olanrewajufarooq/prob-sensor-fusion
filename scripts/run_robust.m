@@ -1,5 +1,5 @@
 % Main script for robust filter experiments
-clear; clc; close all;
+clear; close all;
 setup_paths();
 
 fprintf('=== Running Robust Filter Experiments ===\n');
@@ -38,7 +38,8 @@ for i = 1:length(test_cases)
     
     % Run with robust filter
     runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials);
-    results_robust = runner.run('robust');
+    runner_params = struct('delta', 0.01);  % Example parameter, adjust as needed
+    results_robust = runner.run('robust', runner_params);
     
     % Also run standard filter for comparison
     results_standard = runner.run('standard');
