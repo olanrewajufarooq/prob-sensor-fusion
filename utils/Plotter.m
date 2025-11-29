@@ -5,6 +5,11 @@ classdef Plotter
         function plotTrajectory(x_true, x_est, P_history, scenario_name, filter_name, plot_folder)
             % x_true: 4xT matrix, x_est: 4xT matrix, P_history: cell array
             
+            % Ensure subfolder exists
+            if ~exist(plot_folder, 'dir')
+                mkdir(plot_folder);
+            end
+
             figure('Position', [100, 100, 800, 600]);
             plot(x_true(1,:), x_true(2,:), 'k-', 'LineWidth', 2); hold on;
             plot(x_est(1,:), x_est(2,:), 'r--', 'LineWidth', 1.5);
@@ -35,6 +40,12 @@ classdef Plotter
         
         function plotNEES(nees_mean, nx, scenario_name, filter_name, plot_folder)
             % nees_mean: 1xT vector (averaged over trials)
+
+            % Ensure subfolder exists
+            if ~exist(plot_folder, 'dir')
+                mkdir(plot_folder);
+            end
+
             figure('Position', [100, 100, 800, 600]);
             plot(nees_mean, 'LineWidth', 1.5, 'DisplayName', 'Mean NEES'); hold on;
             yline(nx, 'r--', 'Expected NEES', 'LineWidth', 2);
@@ -60,6 +71,12 @@ classdef Plotter
         
         function plotErrorHistogram(errors, scenario_name, filter_name, plot_folder)
             % errors: nx x T x N_trials
+
+            % Ensure subfolder exists
+            if ~exist(plot_folder, 'dir')
+                mkdir(plot_folder);
+            end
+
             figure('Position', [100, 100, 800, 600]);
             
             % Focus on positional error magnitude (px, py)

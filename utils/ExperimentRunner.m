@@ -26,11 +26,9 @@ classdef ExperimentRunner
         function results = run(obj, filter_name)
             % RUN Executes one Monte Carlo experiment for a specific filter type.
             
-            results.errors = [];
-            results.P_history = {};
-            
-            % Determine filter class and if true state is needed for robustness check
-            needs_truth = contains(filter_name, 'Robust');
+            % Pre-allocate storage for efficiency (since results are now indexed, not concatenated)
+            results.errors = zeros(obj.dynamics.nx, obj.T, obj.N_trials);
+            results.P_history = cell(obj.N_trials, 1);
             
             for trial = 1:obj.N_trials
                 % Initialize TRUE and ESTIMATE state for each trial
@@ -60,8 +58,7 @@ classdef ExperimentRunner
                     x_desired = obj.Trajectory.getDesiredState(t);
                     
                     % 1. Compute Control Input
-                    % PID controller uses the current TRUE state to compute control
-                    u_t = obj.Controller.computeControl(x_true, x_desired, obj.dynamics.dt);
+                    u_t = obj.Controller.computeControl(filter.x_hat, x_desired, obj.dynamics.dt);
                     
                     % 2. Filter Prediction
                     filter = filter.predict(u_t_prev); 
@@ -73,23 +70,21 @@ classdef ExperimentRunner
                     for s = 1:length(obj.sensors)
                         z = obj.sensors{s}.measure(x_true);
                         
-                        if needs_truth
-                            % Robust filters need x_true for the NEES check
-                            filter = filter.update(z, s, x_true); 
-                        else
-                            filter = filter.update(z, s); 
-                        end
+                        % Filter Update: Now uses only observable measurements (z, s)
+                        % The robustness check (NIS) is handled internally.
+                        filter = filter.update(z, s); 
                     end
                     
-                    % 4. Store results
+                    % 4. Store metrics (Error is calculated externally for analysis)
                     trial_errors(:, t) = x_true - filter.x_hat;
                     trial_P{t} = filter.P;
                     
                     u_t_prev = u_t; 
                 end
                 
-                results.errors = cat(3, results.errors, trial_errors);
-                results.P_history = [results.P_history; {trial_P}];
+                % Assign results using subscript indexing
+                results.errors(:, :, trial) = trial_errors;
+                results.P_history{trial} = trial_P;
             end
         end
     end

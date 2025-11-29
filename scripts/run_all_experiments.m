@@ -3,15 +3,13 @@
 % This script runs all four filters (KF, RobustKF, EKF, RobustEKF) on the
 % designated core scenarios.
 
-clc;
-clear all;
+clear;
 close all;
 
-% 1. Setup paths
+% 1. Setup paths (Updated for new folder structure)
 setup_paths;
 
 % 2. Define CORE ANALYSIS Scenarios (Scenario Label, Parameter Function)
-% These are the key scenarios where we run all four filters for direct comparison.
 core_scenarios = {
     'baseline_gaussian', @params_baseline;
     'correlated_rho0.7', @(~) params_correlated(0.7);

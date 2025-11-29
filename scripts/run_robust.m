@@ -17,6 +17,13 @@ params = params_func();
 
 % Delta values (1 - confidence level) for RobustEKF constructor
 delta_values = [0.10, 0.05, 0.01]; 
+subfolder = 'plots/robust_sweep'; % Dedicated subfolder for plots
+
+% Define results subfolder and ensure it exists
+results_subfolder = 'results/robust_sweep';
+if ~exist(results_subfolder, 'dir')
+    mkdir(results_subfolder);
+end
 
 for i = 1:length(delta_values)
     delta = delta_values(i);
@@ -32,14 +39,14 @@ for i = 1:length(delta_values)
     runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials, params.pid_params);
     
     filter_name = 'RobustEKF';
-    plot_folder = 'plots';
-    results_filename = sprintf('results/%s_%s.mat', scenario_label, filter_name);
+    % Update results filename path to include the subfolder
+    results_filename = fullfile(results_subfolder, sprintf('%s_%s.mat', scenario_label, filter_name));
     
     if exist(results_filename, 'file')
         fprintf('  Skipping %s (Results already exist).\n', filter_name);
         load(results_filename, 'results');
     else
-        % --- MANUAL RUN LOOP START (to pass delta) ---
+        % --- MANUAL RUN LOOP START (Necessary to pass 'delta' to the constructor) ---
         
         % 1. Initialize result storage BEFORE the trial loop
         results.errors = zeros(dynamics.nx, params.T, params.N_trials);
@@ -59,7 +66,9 @@ for i = 1:length(delta_values)
             
             for t = 1:params.T
                 x_desired = runner.Trajectory.getDesiredState(t);
-                u_t = runner.Controller.computeControl(x_true, x_desired, dynamics.dt);
+                
+                % Control uses the current filter estimate (filter.x_hat)
+                u_t = runner.Controller.computeControl(filter.x_hat, x_desired, dynamics.dt); 
                 
                 filter = filter.predict(u_t_prev); 
                 
@@ -68,7 +77,7 @@ for i = 1:length(delta_values)
                 
                 for s = 1:length(sensors)
                     z = sensors{s}.measure(x_true);
-                    filter = filter.update(z, s, x_true); % Robust update needs x_true
+                    filter = filter.update(z, s); 
                 end
                 
                 trial_errors(:, t) = x_true - filter.x_hat;
@@ -83,14 +92,14 @@ for i = 1:length(delta_values)
         
         % Save results
         save(results_filename, 'results', 'params', 'filter_name', 'delta');
-        fprintf('  Completed and saved results for Delta = %.2f.\n', delta);
+        fprintf('  Completed and saved results for Delta = %.2f.\n');
         
         % --- MANUAL RUN LOOP END ---
     end
     
     % --- PLOTTING SECTION ---
     
-    % 1. Calculate NEES mean across all trials for the plot label
+    % 1. Calculate NEES mean across all trials for the plot label (analysis only)
     nees_all_trials = cell2mat(arrayfun(@(i) Metrics.computeNEES(results.errors(:,:,i), results.P_history{i}), 1:params.N_trials, 'UniformOutput', false)');
     nees_mean = mean(nees_all_trials, 1);
     
@@ -100,10 +109,10 @@ for i = 1:length(delta_values)
     P_history_trial1 = results.P_history{1};
     
     Plotter.plotTrajectory(x_true_trajectory, x_est_trajectory, ...
-                           P_history_trial1, scenario_label, filter_name, plot_folder);
+                           P_history_trial1, scenario_label, filter_name, subfolder);
                            
-    Plotter.plotNEES(nees_mean, dynamics.nx, scenario_label, filter_name, plot_folder);
-    Plotter.plotErrorHistogram(results.errors, scenario_label, filter_name, plot_folder);
+    Plotter.plotNEES(nees_mean, dynamics.nx, scenario_label, filter_name, subfolder);
+    Plotter.plotErrorHistogram(results.errors, scenario_label, filter_name, subfolder);
 
 end
 

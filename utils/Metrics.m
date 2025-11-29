@@ -1,6 +1,11 @@
 classdef Metrics
-    % METRICS Calculates key estimation metrics: MSE, NEES, and Tail Probability.
+    % METRICS Calculates key estimation metrics: MSE, NEES, and Tail Probability,
+    % and the real-time consistency metric NIS.
     
+    properties (Constant)
+        % Note: EPSILON_REG is removed as requested, using only warning suppression.
+    end
+
     methods (Static)
         function mse = computeMSE(errors)
             % errors: nx x T x N_trials matrix
@@ -19,12 +24,35 @@ classdef Metrics
             T = size(errors, 2);
             nees = zeros(1, T);
             
+            % 1. Temporarily save the current warning state and turn off 
+            % 'MATLAB:nearlySingularMatrix' to suppress the RCOND warning.
+            warning_state = warning('off', 'MATLAB:nearlySingularMatrix');
+            
             for t = 1:T
                 e = errors(:, t);
                 P = P_history{t};
+                P_reg = P; % No regularization
                 
-                % NEES = e' * P^-1 * e
-                nees(t) = e' / P * e;
+                % NEES = e' * P^-1 * e 
+                nees(t) = e' / P_reg * e;
+            end
+            
+            % 2. Restore the original warning state
+            warning(warning_state);
+        end
+        
+        function nis = computeNIS(innovations, S_history)
+            % innovations: nz x T matrix (single trial)
+            % S_history: cell array of innovation covariances {S1, S2, ..., ST}
+            T = size(innovations, 2);
+            nis = zeros(1, T);
+            
+            for t = 1:T
+                r = innovations(:, t);
+                S = S_history{t};
+                
+                % NIS = r' * S^-1 * r 
+                nis(t) = r' / S * r;
             end
         end
         

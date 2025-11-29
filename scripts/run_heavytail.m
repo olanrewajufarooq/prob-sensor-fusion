@@ -2,6 +2,7 @@
 % and outlier magnitude (lambda).
 % This demonstrates how filter performance degrades with increasing non-Gaussianity.
 
+clc;
 clear all;
 close all;
 
@@ -11,10 +12,10 @@ fprintf('=== Running Heavy-Tailed Noise Sweep Experiments ===\n');
 
 % Test configurations: {pi_outlier, lambda}
 configs = {
-    {0.05, 5}; % Rare, moderate outliers
-    {0.05, 10}; % Rare, severe outliers
-    {0.10, 5}; % Common, moderate outliers
-    {0.10, 10} % Common, severe outliers
+    {0.05, 5}, 	 % Rare, moderate outliers
+    {0.05, 10}, 	% Rare, severe outliers
+    {0.10, 5}, 	 % Common, moderate outliers
+    {0.10, 10} 	 % Common, severe outliers
 };
 
 for i = 1:length(configs)

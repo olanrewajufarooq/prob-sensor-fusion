@@ -1,10 +1,10 @@
 classdef RobustKalmanFilter < KalmanFilter
     % ROBUSTKALMANFILTER Robust KF: Linear prediction + Adaptive Covariance Inflation.
-    % Uses KF for prediction, adds Chebyshev-based inflation to P.
+    % Uses NIS (Normalized Innovation Squared), a real-time observable, to drive the inflation.
     
     properties
         inflation_factor    
-        nees_buffer         
+        nis_buffer          % Buffer storing recent NIS values
         buffer_size         
         delta               
         enable_inflation    
@@ -17,7 +17,7 @@ classdef RobustKalmanFilter < KalmanFilter
             
             obj.delta = delta;
             obj.inflation_factor = 1.0;
-            obj.nees_buffer = [];
+            obj.nis_buffer = [];
             obj.buffer_size = 20; 
             obj.enable_inflation = true;
         end
@@ -27,30 +27,31 @@ classdef RobustKalmanFilter < KalmanFilter
             obj = predict@KalmanFilter(obj, u_prev);
         end
         
-        function [obj, innovation] = update(obj, z, sensor_idx, x_true)
-            % Standard KF update
-            [obj, innovation] = update@KalmanFilter(obj, z, sensor_idx);
+        function [obj, innovation, S] = update(obj, z, sensor_idx)
+            % 1. Standard KF update (returns innovation and S)
+            [obj, innovation, S] = update@KalmanFilter(obj, z, sensor_idx);
             
-            % --- Robustness Logic (Chebyshev-based Inflation) ---
-            if nargin > 3 && obj.enable_inflation
-                e = x_true - obj.x_hat;
-                nees = e' / obj.P * e;
-                obj.nees_buffer = [obj.nees_buffer, nees];
+            % --- Robustness Logic (Chebyshev-based Inflation using NIS) ---
+            if obj.enable_inflation
+                % Calculate NIS: nu_t = r_t' * S^-1 * r_t
+                nis = innovation' / S * innovation;
+                obj.nis_buffer = [obj.nis_buffer, nis];
                 
-                if length(obj.nees_buffer) > obj.buffer_size
-                    obj.nees_buffer(1) = [];
+                % Keep buffer size fixed
+                if length(obj.nis_buffer) > obj.buffer_size
+                    obj.nis_buffer(1) = [];
                 end
                 
-                if length(obj.nees_buffer) == obj.buffer_size
-                    nees_mean = mean(obj.nees_buffer);
-                    nx = obj.dynamics.nx; 
+                % Check consistency if buffer is full
+                if length(obj.nis_buffer) == obj.buffer_size
+                    nis_mean = mean(obj.nis_buffer);
+                    nz = size(innovation, 1); % Measurement dimension
                     
-                    % Chebyshev Threshold check (Factor of Safety derived from concentration)
-                    % If the mean NEES is too high, the P matrix is underestimating the error.
-                    consistency_threshold = nx * (1 + 2 * sqrt(1/obj.buffer_size)); 
+                    % Expected mean NIS is nz. Check against Chebyshev bound.
+                    consistency_threshold = nz * (1 + 2 * sqrt(1/obj.buffer_size)); 
                     
-                    if nees_mean > consistency_threshold
-                        % Inflate P
+                    if nis_mean > consistency_threshold
+                        % Inflate P if NIS is consistently too high (inconsistent)
                         obj.inflation_factor = min(3.0, obj.inflation_factor * 1.05);
                         obj.P = obj.inflation_factor * obj.P;
                     else

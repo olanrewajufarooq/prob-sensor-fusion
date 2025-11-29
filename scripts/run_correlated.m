@@ -1,7 +1,7 @@
 % RUN_CORRELATED Runs the correlated noise scenarios, sweeping the correlation coefficient rho.
 % This demonstrates how filter inconsistency increases with higher correlation.
 
-clear all;
+clear;
 close all;
 
 setup_paths();
@@ -16,7 +16,6 @@ for i = 1:length(rho_values)
     scenario_label = sprintf('correlated_rho%.1f', rho);
     
     % Run all 4 filter types for this correlation value
-    % We pass a function handle that calls params_correlated with the current rho
     run_all_experiments_single(scenario_label, @(r) params_correlated(rho));
 end
 
