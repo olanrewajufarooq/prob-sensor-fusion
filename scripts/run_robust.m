@@ -105,7 +105,7 @@ for i = 1:length(delta_values)
         
         % Save results
         save(results_filename, 'results', 'params', 'filter_name', 'delta');
-        fprintf('  Completed and saved results for Delta = %.2f.\n');
+        fprintf('  Completed and saved results for Delta = %.2f.\n', delta);
         
         % --- MANUAL RUN LOOP END ---
     end
