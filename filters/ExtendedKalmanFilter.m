@@ -1,39 +1,44 @@
-classdef KalmanFilter
-    % KALMANFILTER Pure Linear KF. Assumes a simplified linear model (Constant Velocity)
-    % for prediction, even when true dynamics are non-linear (Mismatch demonstration).
+classdef ExtendedKalmanFilter
+    % EXTENDEDKALMANFILTER Standard EKF for non-linear dynamics.
+    % Assumes Gaussian noise and linear measurements.
     
     properties
         x_hat
         P
-        dynamics    % RobotDynamics object (used for F_linear and Q_linear)
+        dynamics
         sensors
+        x_hat_prev 
     end
     
     methods
-        function obj = KalmanFilter(dynamics, sensors, x0, P0)
+        function obj = ExtendedKalmanFilter(dynamics, sensors, x0, P0)
             obj.dynamics = dynamics;
             obj.sensors = sensors;
             obj.x_hat = x0;
             obj.P = P0;
+            obj.x_hat_prev = x0;
         end
         
         function obj = predict(obj, u_prev)
-            % Time update using the LINEAR F and Q (disregarding true non-linearity)
-            Fk = obj.dynamics.F_linear;
-            dt = obj.dynamics.dt;
+            % Time update using non-linear function f and Jacobian Fk
             
-            % Simplified control input assumption for the linear model
-            u_linear = [0; 0; u_prev(2)*dt; u_prev(1)*dt]; 
+            obj.x_hat_prev = obj.x_hat; 
             
-            obj.x_hat = Fk * obj.x_hat + u_linear;
-            obj.P = Fk * obj.P * Fk' + obj.dynamics.Q_linear;
+            % 1. Non-linear state prediction (w=0 for prediction)
+            % Uses the true non-linear model from RobotDynamics
+            obj.x_hat = obj.dynamics.propagate(obj.x_hat, u_prev, zeros(obj.dynamics.nx, 1));
+            
+            % 2. Covariance prediction using Jacobian F_k
+            Fk = obj.dynamics.getJacobianF(obj.x_hat_prev);
+            obj.P = Fk * obj.P * Fk' + obj.dynamics.Q; 
         end
         
         function [obj, innovation] = update(obj, z, sensor_idx)
-            % Measurement update (identical to EKF update logic)
+            % Measurement update (H is linear)
             sensor = obj.sensors{sensor_idx};
             H = sensor.H;
             
+            % R logic: uses assumed covariance
             if isa(sensor.noise_model, 'CorrelatedGaussianNoise')
                 R = sensor.noise_model.getAssumedCovariance();
             else

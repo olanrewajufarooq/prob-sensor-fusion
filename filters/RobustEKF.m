@@ -1,6 +1,6 @@
-classdef RobustKalmanFilter < KalmanFilter
-    % ROBUSTKALMANFILTER Robust KF: Linear prediction + Adaptive Covariance Inflation.
-    % Uses KF for prediction, adds Chebyshev-based inflation to P.
+classdef RobustEKF < ExtendedKalmanFilter
+    % ROBUST EKF: EKF prediction + Adaptive Covariance Inflation.
+    % Uses EKF for prediction, adds Chebyshev-based inflation to P.
     
     properties
         inflation_factor    
@@ -11,8 +11,8 @@ classdef RobustKalmanFilter < KalmanFilter
     end
     
     methods
-        function obj = RobustKalmanFilter(dynamics, sensors, x0, P0, delta)
-            obj@KalmanFilter(dynamics, sensors, x0, P0);
+        function obj = RobustEKF(dynamics, sensors, x0, P0, delta)
+            obj@ExtendedKalmanFilter(dynamics, sensors, x0, P0);
             if nargin < 5, delta = 0.05; end
             
             obj.delta = delta;
@@ -23,13 +23,13 @@ classdef RobustKalmanFilter < KalmanFilter
         end
         
         function obj = predict(obj, u_prev)
-            % Uses the Linear KF prediction
-            obj = predict@KalmanFilter(obj, u_prev);
+            % Uses the EKF prediction
+            obj = predict@ExtendedKalmanFilter(obj, u_prev);
         end
         
         function [obj, innovation] = update(obj, z, sensor_idx, x_true)
-            % Standard KF update
-            [obj, innovation] = update@KalmanFilter(obj, z, sensor_idx);
+            % Standard EKF update
+            [obj, innovation] = update@ExtendedKalmanFilter(obj, z, sensor_idx);
             
             % --- Robustness Logic (Chebyshev-based Inflation) ---
             if nargin > 3 && obj.enable_inflation
@@ -46,7 +46,6 @@ classdef RobustKalmanFilter < KalmanFilter
                     nx = obj.dynamics.nx; 
                     
                     % Chebyshev Threshold check (Factor of Safety derived from concentration)
-                    % If the mean NEES is too high, the P matrix is underestimating the error.
                     consistency_threshold = nx * (1 + 2 * sqrt(1/obj.buffer_size)); 
                     
                     if nees_mean > consistency_threshold

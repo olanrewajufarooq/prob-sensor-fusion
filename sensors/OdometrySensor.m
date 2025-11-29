@@ -1,4 +1,6 @@
 classdef OdometrySensor < SensorModel
+    % ODOMETRYSENSOR Measures velocity and heading [v, theta] from the 4-state vector.
+    
     properties
         H
         noise_model
@@ -8,8 +10,9 @@ classdef OdometrySensor < SensorModel
     methods
         function obj = OdometrySensor(noise_model)
             obj.name = 'Odometry';
+            % H measures [theta, v] from state [px, py, theta, v]'
             obj.H = [0, 0, 1, 0;
-                     0, 0, 0, 1];  % Measures velocity only
+                     0, 0, 0, 1];
             obj.noise_model = noise_model;
         end
         

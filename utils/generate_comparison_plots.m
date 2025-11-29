@@ -1,73 +1,77 @@
-function generate_comparison_plots(all_results)
-    % Generate comprehensive comparison across all scenarios
+function generate_comparison_plots(all_results, plot_folder)
+    % GENERATE_COMPARISON_PLOTS Generates comprehensive bar charts and time series plots 
+    % comparing KF, RKF, EKF, and RobustEKF for all scenarios.
+    
+    if ~exist(plot_folder, 'dir')
+        mkdir(plot_folder);
+    end
     
     scenarios = fieldnames(all_results);
-    n_scenarios = length(scenarios);
-    
-    % Extract MSE and NEES for each scenario
-    mse_values = zeros(1, n_scenarios);
-    nees_values = zeros(1, n_scenarios);
-    scenario_labels = cell(1, n_scenarios);
-    
-    for i = 1:n_scenarios
+    filter_labels = {'KF', 'RobustKF', 'EKF', 'RobustEKF'};
+    nx = 4; % State dimension
+
+    for i = 1:length(scenarios)
         scenario_name = scenarios{i};
         data = all_results.(scenario_name);
         
-        if isfield(data, 'results')
-            results = data.results;
-        elseif isfield(data, 'results_robust')
-            results = data.results_robust;
-        else
-            continue;
+        % Initialize metrics storage for this scenario (4 filters)
+        mse_values = zeros(1, 4);
+        mean_nees_values = zeros(1, 4);
+        nees_time_series = zeros(4, size(data.KF.errors, 2)); % 4 filters x T steps
+        
+        for f = 1:4
+            filter_name = filter_labels{f};
+            results = data.(filter_name);
+            T = size(results.errors, 2);
+            
+            % 1. MSE
+            mse_values(f) = Metrics.computeMSE(results.errors);
+            
+            % 2. NEES Time Series
+            nees_all = zeros(size(results.errors, 3), T);
+            for trial = 1:size(results.errors, 3)
+                nees_all(trial, :) = Metrics.computeNEES(results.errors(:,:,trial), results.P_history{trial});
+            end
+            mean_nees_values(f) = mean(nees_all(:));
+            nees_time_series(f, 1:T) = mean(nees_all, 1);
         end
         
-        mse_values(i) = Metrics.computeMSE(mean(results.errors.^2, 3));
+        % --- Plot 1: Bar Chart Comparison (MSE and NEES) ---
+        figure('Position', [100, 100, 1200, 500]);
         
-        % Compute mean NEES
-        nees_all = [];
-        for trial = 1:size(results.errors, 3)
-            nees_trial = Metrics.computeNEES(results.errors(:,:,trial), results.P_history{trial});
-            nees_all = [nees_all; nees_trial];
-        end
-        nees_values(i) = mean(nees_all(:));
-        
-        scenario_labels{i} = strrep(scenario_name, '_', ' ');
-    end
-    
-    % Plot 1: MSE comparison bar chart
-    figure('Position', [100, 100, 1200, 600]);
-    bar(mse_values);
-    set(gca, 'XTickLabel', scenario_labels, 'XTickLabelRotation', 45);
-    ylabel('MSE');
-    title('MSE Comparison Across All Scenarios');
-    grid on;
-    saveas(gcf, 'plots/mse_comparison_all.png');
-    
-    % Plot 2: NEES comparison
-    figure('Position', [100, 100, 1200, 600]);
-    bar(nees_values); hold on;
-    yline(4, 'r--', 'Expected NEES=4', 'LineWidth', 2);
-    set(gca, 'XTickLabel', scenario_labels, 'XTickLabelRotation', 45);
-    ylabel('Mean NEES');
-    title('NEES Comparison Across All Scenarios');
-    grid on;
-    saveas(gcf, 'plots/nees_comparison_all.png');
-    
-    % Plot 3: MSE vs Correlation (if correlated scenarios exist)
-    corr_idx = contains(scenarios, 'correlated');
-    if any(corr_idx)
-        figure('Position', [100, 100, 800, 600]);
-        rho_vals = [0.3, 0.5, 0.7, 0.9];
-        corr_mse = mse_values(corr_idx);
-        plot(rho_vals, corr_mse(1:length(rho_vals)), 'bo-', 'LineWidth', 2, 'MarkerSize', 10);
-        xlabel('Correlation coefficient \rho');
-        ylabel('MSE');
-        title('MSE vs Correlation');
+        % MSE Plot
+        subplot(1, 2, 1);
+        bar(mse_values);
+        set(gca, 'XTickLabel', filter_labels, 'XTickLabelRotation', 0);
+        ylabel('Mean Squared Error (MSE)');
+        title(sprintf('MSE Comparison - %s', strrep(scenario_name, '_', ' ')));
         grid on;
-        saveas(gcf, 'plots/mse_vs_rho.png');
+        
+        % NEES Plot
+        subplot(1, 2, 2);
+        bar(mean_nees_values); hold on;
+        yline(nx, 'r--', 'Expected NEES=4', 'LineWidth', 2);
+        set(gca, 'XTickLabel', filter_labels, 'XTickLabelRotation', 0);
+        ylabel('Mean NEES');
+        title(sprintf('Mean NEES Comparison - %s', strrep(scenario_name, '_', ' ')));
+        grid on;
+        
+        saveas(gcf, fullfile(plot_folder, sprintf('bar_comparison_%s.png', scenario_name)));
+        close(gcf);
+        
+        % --- Plot 2: NEES Time Series ---
+        figure('Position', [100, 100, 800, 600]);
+        plot(nees_time_series', 'LineWidth', 1.5);
+        yline(nx, 'k--', 'Expected NEES', 'LineWidth', 2);
+        xlabel('Time step');
+        ylabel('Mean NEES');
+        title(sprintf('NEES Time Series - %s', strrep(scenario_name, '_', ' ')));
+        legend(filter_labels, 'Location', 'best');
+        grid on;
+        
+        saveas(gcf, fullfile(plot_folder, sprintf('nees_timeseries_%s.png', scenario_name)));
+        close(gcf);
     end
     
-    close all;
-    
-    fprintf('\nGenerated all comparison plots!\n');
+    fprintf('\nGenerated all comprehensive comparison plots in %s!\n', plot_folder);
 end

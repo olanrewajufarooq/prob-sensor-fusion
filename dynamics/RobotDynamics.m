@@ -1,53 +1,68 @@
 classdef RobotDynamics
-    %ROBOTDYNAMICS Linear discrete-time dynamics for 2d robot
-    %   State: x = [px, py, vx, vy]'
-    %   Model: \dot{x} = F.x + Q . w
+    % ROBOTDYNAMICS Non-linear discrete-time dynamics for a 2D unicycle robot.
+    % TRUE STATE MODEL: Non-linear propagation
+    % LINEAR FILTER MODEL: Linear CV propagation (used by KF/RobustKF for comparison)
     
     properties
-        F   % State Transition Matrix
-        Q   % Motion model noise covariance
-        dt  % Time step
-        nx  % State dimension
+        Q           % Motion model noise covariance (used by EKF/REKF)
+        dt          % Time step
+        nx          % State dimension
+        nu          % Control dimension
+        
+        F_linear    % Linear Constant Velocity F matrix (for KF/RKF comparison)
+        Q_linear    % Linear Q matrix (for KF/RKF comparison)
     end
     
     methods
-        function obj = RobotDynamics(dt, model_noise_std)
-            %ROBOTDYNAMICS Construct an instance of this class
-            %   dt: intervals
-            %   model_noise_std: standard deviation of motion model
+        function obj = RobotDynamics(dt, model_noise_Q)
+            % model_noise_Q is the true Q used in simulation and the assumed Q for EKF/REKF
             obj.dt = dt;
             obj.nx = 4;
-
-            % Constant Velocity Model
-            obj.F = [
-                1, 0, dt, 0;
-                0, 1, 0, dt;
+            obj.nu = 2;
+            obj.Q = model_noise_Q;
+            
+            % --- Linear Model F and Q for KF/RobustKF ---
+            % KF/RobustKF assume a simplified linear Constant Velocity model for prediction
+            obj.F_linear = [
+                1, 0, 0, dt;
+                0, 1, 0, 0;
                 0, 0, 1, 0;
                 0, 0, 0, 1;
-            ];
-            
-            % Motion Model Noise
-            q = model_noise_std^2;
-            obj.Q = q * [
-                dt^3/3, 0, dt^2/2, 0;
-                0, dt^3/3, 0, dt^2/2;
-                dt^2/2, 0, dt, 0;
-                0, dt^2/2, 0, dt
-            ];
+            ]; 
+            obj.Q_linear = model_noise_Q; 
         end
         
-        function x_next = propagate(obj, x, w)
-            %PROPAGATE Propagate state with an optional motion model noise
-            %   x:          state
-            %   w:          motion model noise
-            %   x_next:     OUTPUT
+        function x_next = propagate(obj, x, u, w)
+            % PROPAGATE Non-linear state update (Unicycle model): x_next = f(x, u) + w
+            
+            dt = obj.dt;
+            theta = x(3);
+            v_c = u(1);     % Commanded velocity
+            omega_c = u(2); % Commanded turn rate
+            
+            % Non-linear part f(x, u)
+            f_x_u = x + [
+                x(4) * cos(theta) * dt; % px
+                x(4) * sin(theta) * dt; % py
+                omega_c * dt;           % theta
+                v_c * dt                % v
+            ];
+            
+            x_next = f_x_u + w; % Additive process noise
+        end
+        
+        function Fk = getJacobianF(obj, x_prev)
+            % Jacobian F_k = df/dx |_(x_prev) for EKF
+            dt = obj.dt;
+            theta = x_prev(3);
+            v = x_prev(4);
 
-            if nargin < 3
-                w = mvnrnd(zeros(obj.nx, 1), obj.Q)';
-            end
-
-            x_next = obj.F * x + w;
+            Fk = [
+                1, 0, -v*sin(theta)*dt, cos(theta)*dt;
+                0, 1, v*cos(theta)*dt, sin(theta)*dt;
+                0, 0, 1, 0;
+                0, 0, 0, 1
+            ];
         end
     end
 end
-

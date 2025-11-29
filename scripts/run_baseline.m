@@ -1,32 +1,17 @@
-% Script for baseline experiment
+% RUN_BASELINE Runs the core baseline scenario using the helper runner.
+% This demonstrates the failure of KF due to non-linearity, 
+% and the optimal performance of EKF under ideal conditions.
 
-%% Setup
-clear; close all;
-
-fprintf("===== Running Baseline Experiment =====\n");
+clear all;
+close all;
 
 setup_paths();
 
-%% Get Parameters
-params = params_baseline();
+% Define the scenario
+scenario_label = 'baseline_gaussian';
+params_func = @params_baseline;
 
-%% Create Dynamics
-dynamics = RobotDynamics(params.dt, params.sigma_w);
+% Run all 4 filter types for the baseline scenario
+run_all_experiments_single(scenario_label, params_func);
 
-%% Create sensors with independent Gaussian noise
-gps_noise = GaussianNoise(params.sigma_gps^2 * eye(2));
-odom_noise = GaussianNoise(params.sigma_odom^2 * eye(2));
-
-sensors = {GPSSensor(gps_noise), OdometrySensor(odom_noise)};
-
-%% Run experiment
-runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials);
-results = runner.run('standard');
-
-%% Save results
-save(sprintf('results/%s.mat', params.scenario), 'results', 'params');
-
-%% Generate plots
-plot_scenario_results(results, params, 'baseline');
-
-fprintf('Baseline experiment complete!\n');
+fprintf('Baseline experiment complete. See output plots for EKF vs KF comparison.\n');

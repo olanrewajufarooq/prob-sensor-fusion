@@ -1,46 +1,30 @@
-% Main script for heavy-tailed noise experiments
-clear; close all;
+% RUN_HEAVYTAIL Runs the heavy-tailed noise scenarios, sweeping outlier probability (pi) 
+% and outlier magnitude (lambda).
+% This demonstrates how filter performance degrades with increasing non-Gaussianity.
+
+clear all;
+close all;
+
 setup_paths();
 
-fprintf('=== Running Heavy-Tailed Noise Experiments ===\n');
+fprintf('=== Running Heavy-Tailed Noise Sweep Experiments ===\n');
 
-% Test configurations
-configs = [
-    0.05, 5;   % Rare, moderate outliers
-    0.05, 10;  % Rare, severe outliers
-    0.1, 10;   % Common, severe outliers
-];
+% Test configurations: {pi_outlier, lambda}
+configs = {
+    {0.05, 5}; % Rare, moderate outliers
+    {0.05, 10}; % Rare, severe outliers
+    {0.10, 5}; % Common, moderate outliers
+    {0.10, 10} % Common, severe outliers
+};
 
-for i = 1:size(configs, 1)
-    pi_outlier = configs(i, 1);
-    lambda = configs(i, 2);
+for i = 1:length(configs)
+    pi_outlier = configs{i}{1};
+    lambda = configs{i}{2};
     
-    fprintf('\n--- Running pi=%.2f, lambda=%d ---\n', pi_outlier, lambda);
+    scenario_label = sprintf('heavytail_pi%.2f_lambda%d', pi_outlier, lambda);
     
-    % Get parameters
-    params = params_heavytail(pi_outlier, lambda);
-    
-    % Create dynamics
-    dynamics = RobotDynamics(params.dt, params.sigma_w);
-    
-    % Create sensors with mixture noise
-    gps_noise = MixtureNoise(params.sigma_gps^2 * eye(2), pi_outlier, lambda);
-    odom_noise = MixtureNoise(params.sigma_odom^2 * eye(2), pi_outlier, lambda);
-    
-    sensors = {GPSSensor(gps_noise), OdometrySensor(odom_noise)};
-    
-    % Run experiment
-    runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials);
-    results = runner.run('standard');
-    
-    % Save results
-    save(sprintf('results/%s.mat', params.scenario), 'results', 'params');
-    
-    % Generate plots
-    plot_scenario_results(results, params, ...
-        sprintf('heavytail_pi%.2f_lambda%d', pi_outlier, lambda));
-    
-    fprintf('Completed pi=%.2f, lambda=%d\n', pi_outlier, lambda);
+    % Run all 4 filter types for this heavy-tail configuration
+    run_all_experiments_single(scenario_label, @(p, l) params_heavytail(pi_outlier, lambda));
 end
 
-fprintf('\nAll heavy-tailed experiments complete!\n');
+fprintf('\nAll heavy-tailed sweep experiments complete!\n');
