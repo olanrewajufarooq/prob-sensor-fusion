@@ -12,21 +12,25 @@ classdef ExperimentRunner
     end
     
     methods
-        function obj = ExperimentRunner(dynamics, sensors, T, N_trials, pid_params)
+        function obj = ExperimentRunner(dynamics, sensors, T, N_trials, pid_params, trajectory_type)
+            % Constructor: Initializes the simulation environment and controller.
+            % Accepts trajectory_type string to define the path (e.g., 'Circular').
             obj.dynamics = dynamics;
             obj.sensors = sensors;
             obj.T = T;
             obj.N_trials = N_trials;
             
-            % Initialize Trajectory and Controller
-            obj.Trajectory = TrajectoryGenerator(dynamics.dt, T);
+            % 1. Initialize Trajectory, passing the path type string
+            obj.Trajectory = TrajectoryGenerator(dynamics.dt, T, trajectory_type);
+            
+            % 2. Initialize Controller
             obj.Controller = PIDController(pid_params.Kp, pid_params.Ki, pid_params.Kd);
         end
         
         function results = run(obj, filter_name)
             % RUN Executes one Monte Carlo experiment for a specific filter type.
             
-            % Pre-allocate storage for efficiency (since results are now indexed, not concatenated)
+            % Pre-allocate storage for efficiency
             results.errors = zeros(obj.dynamics.nx, obj.T, obj.N_trials);
             results.P_history = cell(obj.N_trials, 1);
             
@@ -36,7 +40,7 @@ classdef ExperimentRunner
                 x0 = x_true + mvnrnd(zeros(obj.dynamics.nx,1), diag([1, 1, 0.1, 0.1]))';
                 P0 = diag([1.0, 1.0, 0.5, 0.5]);
                 
-                % Instantiate the appropriate filter
+                % Instantiate the appropriate filter based on filter_name
                 switch filter_name
                     case 'KF'
                         filter = KalmanFilter(obj.dynamics, obj.sensors, x0, P0);
@@ -57,8 +61,9 @@ classdef ExperimentRunner
                 for t = 1:obj.T
                     x_desired = obj.Trajectory.getDesiredState(t);
                     
-                    % 1. Compute Control Input
-                    u_t = obj.Controller.computeControl(filter.x_hat, x_desired, obj.dynamics.dt);
+                    % 1. Compute Control Input: Uses the current filter estimate (filter.x_hat) 
+                    % for real-world closed-loop simulation.
+                    u_t = obj.Controller.computeControl(filter.x_hat, x_desired, obj.dynamics.dt); 
                     
                     % 2. Filter Prediction
                     filter = filter.predict(u_t_prev); 
@@ -70,12 +75,12 @@ classdef ExperimentRunner
                     for s = 1:length(obj.sensors)
                         z = obj.sensors{s}.measure(x_true);
                         
-                        % Filter Update: Now uses only observable measurements (z, s)
-                        % The robustness check (NIS) is handled internally.
+                        % Filter Update: Uses only observable measurements (z, s).
+                        % Robustness check (NIS) is handled internally.
                         filter = filter.update(z, s); 
                     end
                     
-                    % 4. Store metrics (Error is calculated externally for analysis)
+                    % 4. Store metrics (True error is calculated externally for analysis)
                     trial_errors(:, t) = x_true - filter.x_hat;
                     trial_P{t} = filter.P;
                     
