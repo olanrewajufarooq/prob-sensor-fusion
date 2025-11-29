@@ -1,23 +1,24 @@
 % RUN_ROBUST Runs the RobustEKF on a fixed mis-specified scenario while sweeping 
 % the Chebyshev confidence parameter (delta).
-% This demonstrates the trade-off between robustness (inflation) and nominal performance.
 
-clc;
-clear all;
+clear;
 close all;
 
 setup_paths();
 
 fprintf('=== Running Robustness Parameter (Delta) Sweep Experiments ===\n');
 
-% Fixed mis-specified scenario to test robustness adaptation
-CORE_SCENARIO_LABEL = 'correlated_rho0.7';
-params_func = @(r) params_correlated(0.7);
+% Set up Heavy-Tail scenario (pi=0.05, lambda=10)
+CORE_SCENARIO_LABEL = 'heavytail_pi0.05_lambda10';
+params_func = @(pi, lambda) params_heavytail(0.05, 10);
 params = params_func();
+
+% Define the base trajectory type for this sweep
+SWEEP_TRAJECTORY = 'Circular'; 
 
 % Delta values (1 - confidence level) for RobustEKF constructor
 delta_values = [0.10, 0.05, 0.01]; 
-subfolder = 'plots/robust_sweep'; % Dedicated subfolder for plots
+subfolder = 'plots/robust_sweep';
 
 % Define results subfolder and ensure it exists
 results_subfolder = 'results/robust_sweep';
@@ -25,21 +26,33 @@ if ~exist(results_subfolder, 'dir')
     mkdir(results_subfolder);
 end
 
+% --- Setup Sensors for Heavy-Tail Scenario ---
+% The RobustEKF needs to be tested on the MixtureNoise model
+R_nominal_gps = diag([params.sigma_gps^2, params.sigma_gps^2]);
+R_nominal_odom = diag([params.sigma_odom^2, params.sigma_odom^2]);
+
+gps_noise = MixtureNoise(R_nominal_gps, params.pi_outlier, params.lambda);
+odom_noise = MixtureNoise(R_nominal_odom, params.pi_outlier, params.lambda);
+sensors = {GPSSensor(gps_noise), OdometrySensor(odom_noise)};
+% ---------------------------------------------
+
+
 for i = 1:length(delta_values)
     delta = delta_values(i);
     
     % Create unique scenario label for this delta test
     scenario_label = sprintf('robust_delta_sweep_d%.2f', delta);
     
-    fprintf('\n--- Running RobustEKF on %s with Delta = %.2f ---\n', CORE_SCENARIO_LABEL, delta);
+    fprintf('\n--- Running RobustEKF on %s with Delta = %.2f (Path: %s) ---\n', ...
+        CORE_SCENARIO_LABEL, delta, SWEEP_TRAJECTORY);
 
     % --- Setup System ---
     dynamics = RobotDynamics(params.dt, params.Q);
-    sensors = create_correlated_sensors(params.sigma_gps, params.sigma_odom, params.rho);
-    runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials, params.pid_params);
+    
+    % Instantiate runner, passing the trajectory type
+    runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials, params.pid_params, SWEEP_TRAJECTORY);
     
     filter_name = 'RobustEKF';
-    % Update results filename path to include the subfolder
     results_filename = fullfile(results_subfolder, sprintf('%s_%s.mat', scenario_label, filter_name));
     
     if exist(results_filename, 'file')

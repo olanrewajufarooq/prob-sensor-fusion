@@ -1,6 +1,6 @@
 % COMPARE_ALL Loads all saved results and generates the comprehensive comparison plots.
 
-clear all;
+clear;
 close all;
 
 setup_paths();

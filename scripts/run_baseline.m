@@ -2,7 +2,7 @@
 % This demonstrates the failure of KF due to non-linearity, 
 % and the optimal performance of EKF under ideal conditions.
 
-clear all;
+clear;
 close all;
 
 setup_paths();

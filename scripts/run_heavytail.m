@@ -2,8 +2,7 @@
 % and outlier magnitude (lambda).
 % This demonstrates how filter performance degrades with increasing non-Gaussianity.
 
-clc;
-clear all;
+clear;
 close all;
 
 setup_paths();
