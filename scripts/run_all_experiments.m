@@ -9,20 +9,9 @@ close all;
 % 1. Setup paths (Updated for new folder structure)
 setup_paths;
 
-% 2. Define CORE ANALYSIS Scenarios (Scenario Label, Parameter Function)
-core_scenarios = {
-    'baseline_gaussian', @params_baseline;
-    'correlated_rho0.7', @(~) params_correlated(0.7);
-    'heavytail_pi0.05_lambda10', @(~) params_heavytail(0.05, 10);
-};
-
-for i = 1:length(core_scenarios)
-    scenario_label = core_scenarios{i, 1};
-    params_func = core_scenarios{i, 2};
-    
-    % Call the single runner helper function for all four filter types
-    run_all_experiments_single(scenario_label, params_func);
-end
+% 2. Run baseline
+fprintf('\n--- Running Baseline ---\n');
+run_baseline;
 
 % 3. Run all parameter sweep experiments (these scripts save their own results)
 fprintf('\n--- Running Correlated Noise Sweep ---\n');

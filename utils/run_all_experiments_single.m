@@ -1,17 +1,13 @@
 function run_all_experiments_single(base_scenario_label, params_func)
-% Helper function to run a single scenario, used by all main scripts.
-% Runs KF, RobustKF, EKF, and RobustEKF for a given noise scenario across 
-% multiple predefined trajectories.
 
 filter_types = {'KF', 'RobustKF', 'EKF', 'RobustEKF'};
 
 params = params_func();
 dynamics = RobotDynamics(params.dt, params.Q);
 
-% Define trajectories to test (Assuming TrajectoryGenerator supports these types)
+% Sweep across these trajectories for the scenario
 trajectory_list = {'Circular', 'Figure8', 'Spiral'};
 
-% --- Determine Noise Parameters and Base Subfolder ---
 if contains(base_scenario_label, 'correlated')
     subfolder_name = 'correlated';
     sensors = create_correlated_sensors(params.sigma_gps, params.sigma_odom, params.rho);
@@ -23,65 +19,42 @@ elseif contains(base_scenario_label, 'heavytail')
     sensors = {GPSSensor(noise_model)};
     noise_name = 'Mixture/Heavy-Tail';
 else 
-    subfolder_name = 'baseline'; % Includes 'baseline_gaussian'
+    subfolder_name = 'baseline';
     R_nominal = diag([params.sigma_gps^2, params.sigma_gps^2]);
     noise_model = GaussianNoise(R_nominal);
     sensors = {GPSSensor(noise_model)};
     noise_name = 'Standard Gaussian';
 end
 
-% --- Trajectory Loop ---
-
-for t_idx = 1:length(trajectory_list)
-    current_trajectory_type = trajectory_list{t_idx};
-    
-    % Update the scenario label to be unique for this trajectory
-    scenario_label = sprintf('%s_%s', base_scenario_label, current_trajectory_type);
-    
-    % Define specific plot and results folders based on noise type
-    plot_subfolder = fullfile('plots', subfolder_name, current_trajectory_type);
-    results_subfolder = fullfile('results', subfolder_name, current_trajectory_type);
-
-    % Ensure output directories exist
-    if ~exist(plot_subfolder, 'dir')
-        mkdir(plot_subfolder);
-    end
-    if ~exist(results_subfolder, 'dir')
-        mkdir(results_subfolder);
-    end
-
-    % Create Experiment Runner (Assuming runner can now take a trajectory type)
-    % NOTE: We must update the ExperimentRunner constructor to accept the trajectory type.
-    
-    % Assuming ExperimentRunner is updated to take TrajectoryType as the last argument
-    runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials, params.pid_params, current_trajectory_type);
-
-    fprintf('\nRunning Scenario: %s (Trajectory: %s)\n', base_scenario_label, current_trajectory_type);
-    
-    % --- Filter Loop ---
-    
-    for f = 1:length(filter_types)
-        filter_name = filter_types{f};
+    for t_idx = 1:length(trajectory_list)
+        current_trajectory_type = trajectory_list{t_idx};
         
-        % Define file path using the subfolder
-        results_filename = fullfile(results_subfolder, sprintf('%s_%s.mat', scenario_label, filter_name));
+        scenario_label = sprintf('%s_%s', base_scenario_label, current_trajectory_type);
         
-        % Check if results already exist to avoid re-running
-        if exist(results_filename, 'file')
-            fprintf('  Skipping %s (Results already exist).\n', filter_name);
-            load(results_filename, 'results');
-        else
-            fprintf('  Running Filter: %s (Noise: %s)...\n', filter_name, noise_name);
-            results = runner.run(filter_name);
-            save(results_filename, 'results', 'params', 'filter_name');
-        end
+        % Stable folder creation for outputs
+        plot_subfolder = PathHelper.ensurePath('plots', fullfile(subfolder_name, current_trajectory_type), '', true);
+        results_subfolder = PathHelper.ensurePath('results', fullfile(subfolder_name, current_trajectory_type), '', true);
 
-        % --- Generate plots for ALL filter types ---
+        runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials, params.pid_params, current_trajectory_type);
+
+        fprintf('\nRunning Scenario: %s (Trajectory: %s)\n', base_scenario_label, current_trajectory_type);
         
-         % Recalculate NEES mean across all trials for the plot label
+        for f = 1:length(filter_types)
+            filter_name = filter_types{f};
+            
+            results_filename = fullfile(results_subfolder, sprintf('%s_%s.mat', scenario_label, filter_name));
+            
+            if exist(results_filename, 'file')
+                fprintf('  Skipping %s (Results already exist).\n', filter_name);
+                load(results_filename, 'results');
+            else
+                fprintf('  Running Filter: %s (Noise: %s)...\n', filter_name, noise_name);
+                results = runner.run(filter_name);
+                save(results_filename, 'results', 'params', 'filter_name');
+            end
+
          nees_mean = mean(cell2mat(arrayfun(@(i) Metrics.computeNEES(results.errors(:,:,i), results.P_history{i}), 1:params.N_trials, 'UniformOutput', false)'), 1);
          
-         % Get estimated trajectory for plotting (using trial 1)
          x_true_trajectory = runner.Trajectory.getDesiredState(1:params.T);
          x_est_trajectory = x_true_trajectory - results.errors(:,:,1); 
          
@@ -92,6 +65,6 @@ for t_idx = 1:length(trajectory_list)
     end
 
     fprintf('Completed all filters for scenario: %s.\n', scenario_label);
-end % End Trajectory Loop
+end
 
 end

@@ -1,4 +1,4 @@
-classdef RobustEKF < ExtendedKalmanFilter
+classdef RobustKF < KF
     
     properties
         inflation_factor    
@@ -10,8 +10,8 @@ classdef RobustEKF < ExtendedKalmanFilter
     end
     
     methods
-        function obj = RobustEKF(dynamics, sensors, x0, P0, delta)
-            obj@ExtendedKalmanFilter(dynamics, sensors, x0, P0);
+        function obj = RobustKF(dynamics, sensors, x0, P0, delta)
+            obj@KF(dynamics, sensors, x0, P0);
             if nargin < 5, delta = 0.05; end
             
             obj.delta = delta;
@@ -21,13 +21,7 @@ classdef RobustEKF < ExtendedKalmanFilter
             obj.enable_inflation = true;
         end
         
-        function obj = predict(obj, u_prev)
-            obj = predict@ExtendedKalmanFilter(obj, u_prev);
-        end
-        
         function [obj, innovation, S] = update(obj, z, sensor_idx)
-            [obj, innovation, S_nominal] = update@ExtendedKalmanFilter(obj, z, sensor_idx);
-            
             sensor = obj.sensors{sensor_idx};
             H = sensor.H;
 
@@ -36,6 +30,9 @@ classdef RobustEKF < ExtendedKalmanFilter
             else
                 R_filt = sensor.noise_model.R;
             end
+
+            innovation = z - H * obj.x_hat;
+            S_nominal = H * obj.P * H' + R_filt;
             
             expected_sq_norm = trace(S_nominal);
             markov_threshold = expected_sq_norm / obj.outlier_prob_limit;
@@ -43,20 +40,19 @@ classdef RobustEKF < ExtendedKalmanFilter
             current_sq_norm = innovation' * innovation;
             if current_sq_norm > markov_threshold
                 R_used = R_filt * 100;
-                S_outlier = H * obj.P * H' + R_used;
-                S = S_outlier;
+                S = H * obj.P * H' + R_used;
             else
-                R_used = R_filt; 
+                R_used = R_filt;
                 S = S_nominal;
             end
             
-            if ~isequal(R_used, R_filt)
-                K = obj.P * H' / S;
-                obj.x_hat = obj.x_hat + K * innovation;
-                obj.P = (eye(size(obj.P)) - K * H) * obj.P;
-                obj.P = 0.5 * (obj.P + obj.P');
-            end
+            K = obj.P * H' / S;
             
+            obj.x_hat = obj.x_hat + K * innovation;
+            obj.P = (eye(size(obj.P)) - K * H) * obj.P;
+            
+            obj.P = 0.5 * (obj.P + obj.P');
+
             nis = innovation' / S * innovation; 
 
             if obj.enable_inflation
