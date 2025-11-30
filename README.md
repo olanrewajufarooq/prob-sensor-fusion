@@ -82,11 +82,24 @@ $$
 x^+ = F_{\text{linear}} x + G u + w
 $$
 
+where the state transition matrix is:
+
+$$
+F_{\text{linear}} = \begin{bmatrix} 
+1 & 0 & \Delta t & 0 \\ 
+0 & 1 & 0 & \Delta t \\ 
+0 & 0 & 1 & 0 \\ 
+0 & 0 & 0 & 1 
+\end{bmatrix}
+$$
+
+This matrix couples position ($p_x, p_y$) to velocity ($\dot{p}_x, \dot{p}_y$) through the time step $\Delta t$. The process noise covariance is:
+
 $$
 Q_{\text{linear}} = Q
 $$
 
-This linear model ignores the nonlinear coupling of position with heading and velocity, and is used only by the standard KF.
+This linear model ignores the nonlinear coupling of position with heading and velocity, and is used only by the standard KF. In contrast, the Extended Kalman Filter (EKF) uses the nonlinear unicycle dynamics that properly capture how velocity and heading determine position changes.
 
 ---
 
