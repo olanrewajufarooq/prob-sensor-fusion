@@ -5,12 +5,14 @@ classdef TrajectoryGenerator
     properties
         target_path % N_steps x 4 matrix of [px, py, theta, v]_desired
         dt
+        type        % Trajectory type string for reference
     end
     
     methods
         function obj = TrajectoryGenerator(dt, T, trajectory_type)
             % T is the number of time steps
             obj.dt = dt;
+            obj.type = trajectory_type;
             T_full = T * dt;
             t_vec = (0:dt:T_full)';
             steps = length(t_vec);
