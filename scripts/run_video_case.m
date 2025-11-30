@@ -31,9 +31,10 @@ SCENARIO_LABEL = 'heavytail_pi0.05_lambda5';
 FILTER_TYPE   = 'RobustKF';
 
 % TRAJECTORY: Motion path type
-%   - 'Circular'    (Circular path)
-%   - 'Figure8'     (Figure-8 pattern)
-%   - 'Spiral'      (Spiral trajectory)
+%   - 'Circular'       (Circular path)
+%   - 'Figure8'        (Figure-8 pattern)
+%   - 'Spiral'         (Spiral trajectory)
+%   - 'HighCurvature'  (Sharp turns - exposes EKF limitations, ideal for RobustEKF)
 TRAJECTORY    = 'Circular';
 
 % ========== END USER CONFIGURATION ==========

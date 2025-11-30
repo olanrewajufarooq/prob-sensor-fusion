@@ -108,6 +108,8 @@ classdef VideoRunner
                 trajectory_type = 'Figure8';
             elseif contains(label, 'Spiral')
                 trajectory_type = 'Spiral';
+            elseif contains(label, 'HighCurvature')
+                trajectory_type = 'HighCurvature';
             else
                 trajectory_type = 'Circular';
             end

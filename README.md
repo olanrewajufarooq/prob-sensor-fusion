@@ -122,7 +122,18 @@ $$
 
 The heading $\theta$ and speed $v$ are derived from the time derivatives of $p_x$ and $p_y$. The radius expands linearly over the simulation, creating an outward spiral.
 
----
+### High-Curvature Trajectory
+
+$$
+p_x = R\sin(2\omega t)\cos(\omega t),\quad p_y = R\sin(\omega t)\cos(2\omega t)
+$$
+
+This trajectory combines two oscillation frequencies to create sharp, unpredictable turns and rapid heading changes. It is designed to expose the limitations of the standard EKF by creating scenarios where:
+- **Linearization errors accumulate** due to extreme curvature
+- **Filter divergence is likely** without adaptive mechanisms
+- **RobustEKF's covariance adaptation** should significantly improve performance
+
+This trajectory is ideal for demonstrating when robust filtering becomes necessary.
 
 ## 4. Filters
 
@@ -741,7 +752,7 @@ runner.run_experiment('EKF', 'Circular', @() params_baseline(), 'baseline_gaussi
 
 **Parameters:**
 - Filter name: `'KF'`, `'EKF'`, `'RobustKF'`, or `'RobustEKF'`
-- Trajectory: `'Circular'`, `'Figure8'`, or `'Spiral'`
+- Trajectory: `'Circular'`, `'Figure8'`, `'Spiral'`, or `'HighCurvature'`
 - Parameter function: `@() params_baseline()`, `@() params_correlated(rho)`, or `@() params_heavytail(pi, lambda)`
 - Result label: Descriptive string for the output file name
 
@@ -855,7 +866,7 @@ Videos provide an interactive replay of filter estimates over the reference traj
    % FILTER_TYPE options: 'KF', 'EKF', 'RobustKF', 'RobustEKF'
    FILTER_TYPE = 'RobustEKF';
    
-   % TRAJECTORY options: 'Circular', 'Figure8', 'Spiral'
+   % TRAJECTORY options: 'Circular', 'Figure8', 'Spiral', 'HighCurvature'
    TRAJECTORY = 'Spiral';
    ```
    
@@ -867,6 +878,28 @@ Videos provide an interactive replay of filter estimates over the reference traj
    ```
 
    The video is automatically saved to `video_exports/<scenario_label>_<trajectory>_<filter_type>.mp4`.
+
+### Batch Video Generation (All Filters)
+
+To generate videos for all 4 filters at once without editing code each time, use the batch video runner:
+
+```matlab
+% Mode 1: Generate 4 videos (one per filter) for a specific trajectory
+VideoBatchRunner.generateVideosForAllFilters('baseline_gaussian', 'Spiral');
+
+% Mode 2: Generate 16 videos (4 filters × 4 trajectories) for a scenario
+VideoBatchRunner.generateVideosForScenario('baseline_gaussian');
+```
+
+Or use the convenience script:
+
+```matlab
+% Edit run_video_batch.m to set MODE, SCENARIO_LABEL, and TRAJECTORY
+% Then run:
+run_video_batch
+```
+
+This generates videos comparing all filters on the same scenario and trajectory, making it easy to visually compare performance.
 
 ### Video Contents
 

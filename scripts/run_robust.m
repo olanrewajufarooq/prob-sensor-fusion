@@ -11,14 +11,15 @@ fprintf('=== Running Robustness Parameter Sweep (Delta & Lambda) ===\n');
 % Set up Heavy-Tail scenario base parameters
 pi_outlier = 0.05;  % Fixed outlier probability
 
-% Define the base trajectory type for this sweep
-SWEEP_TRAJECTORY = 'Circular'; 
+% Define the trajectory types for this sweep (test on multiple trajectories)
+% Use 'Circular' for standard testing, or try 'HighCurvature' for challenging nonlinearity
+trajectory_list = {'Circular', 'HighCurvature'};
 
 % Delta values (1 - confidence level) for RobustEKF constructor
 delta_values = [0.10, 0.05, 0.01];
 
 % Lambda values (outlier scale) for mixture noise
-lambda_values = [5, 10];
+lambda_values = [5, 10, 20];
 
 subfolder = 'plots/robust_sweep';
 
@@ -28,29 +29,33 @@ if ~exist(results_subfolder, 'dir')
     mkdir(results_subfolder);
 end
 
-% Sweep over both delta and lambda
-for j = 1:length(lambda_values)
-    lambda = lambda_values(j);
+% Sweep over trajectories, lambda values, and delta values
+for traj_idx = 1:length(trajectory_list)
+    SWEEP_TRAJECTORY = trajectory_list{traj_idx};
+    fprintf('\n========== Trajectory: %s ==========\n', SWEEP_TRAJECTORY);
     
-    % Set up Heavy-Tail scenario with current lambda
-    CORE_SCENARIO_LABEL = sprintf('heavytail_pi0.05_lambda%d', lambda);
-    params_func = @(pi, lam) params_heavytail(pi_outlier, lambda);
-    params = params_func();
-    
-    % --- Setup Sensors for Heavy-Tail Scenario ---
-    R_nominal_gps = diag([params.sigma_gps^2, params.sigma_gps^2]);
-    R_nominal_odom = diag([params.sigma_odom^2, params.sigma_odom^2]);
-    
-    gps_noise = MixtureNoise(R_nominal_gps, params.pi_outlier, lambda);
-    odom_noise = MixtureNoise(R_nominal_odom, params.pi_outlier, lambda);
-    sensors = {GPSSensor(gps_noise), OdometrySensor(odom_noise)};
-    % ---------------------------------------------
-
-    for i = 1:length(delta_values)
-        delta = delta_values(i);
+    for j = 1:length(lambda_values)
+        lambda = lambda_values(j);
         
-        % Create unique scenario label for this delta-lambda combination
-        scenario_label = sprintf('robust_delta%.2f_lambda%d', delta, lambda);
+        % Set up Heavy-Tail scenario with current lambda
+        CORE_SCENARIO_LABEL = sprintf('heavytail_pi0.05_lambda%d', lambda);
+        params_func = @(pi, lam) params_heavytail(pi_outlier, lambda);
+        params = params_func();
+        
+        % --- Setup Sensors for Heavy-Tail Scenario ---
+        R_nominal_gps = diag([params.sigma_gps^2, params.sigma_gps^2]);
+        R_nominal_odom = diag([params.sigma_odom^2, params.sigma_odom^2]);
+        
+        gps_noise = MixtureNoise(R_nominal_gps, params.pi_outlier, lambda);
+        odom_noise = MixtureNoise(R_nominal_odom, params.pi_outlier, lambda);
+        sensors = {GPSSensor(gps_noise), OdometrySensor(odom_noise)};
+        % ---------------------------------------------
+
+        for i = 1:length(delta_values)
+            delta = delta_values(i);
+            
+            % Create unique scenario label for this delta-lambda-trajectory combination
+            scenario_label = sprintf('robust_delta%.2f_lambda%d_%s', delta, lambda, SWEEP_TRAJECTORY);
         
         fprintf('\n--- Running RobustEKF on %s with Delta = %.2f (Path: %s) ---\n', ...
             CORE_SCENARIO_LABEL, delta, SWEEP_TRAJECTORY);
@@ -136,6 +141,7 @@ for j = 1:length(lambda_values)
         Plotter.plotNEES(nees_mean, dynamics.nx, scenario_label, filter_name, subfolder);
         Plotter.plotErrorHistogram(results.errors, scenario_label, filter_name, subfolder);
 
+        end
     end
 end
 

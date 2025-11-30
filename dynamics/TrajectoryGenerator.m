@@ -46,6 +46,14 @@ classdef TrajectoryGenerator
                         vx = -R * omega * sin(omega * t);
                         vy = R * omega * cos(omega * t);
                         
+                    case 'HighCurvature'
+                        % Sharp turns and rapid heading changes - exposes EKF linearization errors
+                        % Combines multiple frequencies to create unpredictable curvature
+                        px = R * sin(2*omega * t) * cos(omega * t);
+                        py = R * sin(omega * t) * cos(2*omega * t);
+                        vx = R * (2*omega*cos(2*omega*t)*cos(omega*t) - omega*sin(2*omega*t)*sin(omega*t));
+                        vy = R * (omega*cos(omega*t)*cos(2*omega*t) - 2*omega*sin(omega*t)*sin(2*omega*t));
+                        
                     otherwise
                         error('Invalid trajectory type specified: %s', trajectory_type);
                 end

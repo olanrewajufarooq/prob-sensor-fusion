@@ -6,7 +6,7 @@ params = params_func();
 dynamics = RobotDynamics(params.dt, params.Q);
 
 % Sweep across these trajectories for the scenario
-trajectory_list = {'Circular', 'Figure8', 'Spiral'};
+trajectory_list = {'Circular', 'Figure8', 'Spiral', 'HighCurvature'};
 
 if contains(base_scenario_label, 'correlated')
     subfolder_name = 'correlated';
