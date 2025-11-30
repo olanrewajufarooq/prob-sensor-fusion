@@ -723,6 +723,14 @@ To run all filters and trajectories under a specific noise regime:
   ```
   Runs: combinations of outlier rate and scale for all filters and trajectories.
 
+- **Robustness parameter sweep (Delta & Lambda):**
+  ```matlab
+  run_robust
+  ```
+  Sweeps the Markov confidence threshold (delta) and outlier scale (lambda) on heavy-tail scenarios.
+  Generates a 3×3 grid of experiments (3 delta values × 3 lambda values) to analyze robustness sensitivity.
+  Results saved to `results/robust_sweep/` and plots to `plots/robust_sweep/`.
+
 #### Single Filter on Single Trajectory
 To run a specific filter on a specific trajectory and noise regime, use the `ExperimentRunner` class directly:
 
@@ -736,6 +744,39 @@ runner.run_experiment('EKF', 'Circular', @() params_baseline(), 'baseline_gaussi
 - Trajectory: `'Circular'`, `'Figure8'`, or `'Spiral'`
 - Parameter function: `@() params_baseline()`, `@() params_correlated(rho)`, or `@() params_heavytail(pi, lambda)`
 - Result label: Descriptive string for the output file name
+
+### Tuning Robust Filter Parameters
+
+The robust filters (RobustKF and RobustEKF) provide configurable parameters for fine-tuning robustness behavior. You can customize these when creating the `ExperimentRunner`:
+
+```matlab
+% Define custom robust configuration
+robust_config = struct();
+robust_config.delta = 1e-2;              % Markov outlier threshold (lower = more aggressive)
+robust_config.buffer_size = 30;          % Chebyshev window size (larger = slower response)
+robust_config.inflation_cap = 4.0;       % Max covariance inflation factor
+robust_config.inflation_rate = 1.1;      % Rate of inflation per trigger (faster response)
+robust_config.deflation_rate = 0.98;     % Rate of deflation decay
+robust_config.markov_inflation = 200;    % How much to inflate R when outlier detected
+
+% Pass configuration to ExperimentRunner
+dynamics = RobotDynamics(params.dt, params.Q);
+sensors = {gps_sensor, odom_sensor};
+runner = ExperimentRunner(dynamics, sensors, params.T, params.N_trials, params.pid_params, ...
+    'Circular', robust_config);
+
+% Run with custom parameters
+results = runner.run('RobustEKF');
+```
+
+**Tuning Guidelines:**
+
+| Scenario | Recommendation |
+|----------|---|
+| **Heavy outliers** | Lower $\delta$ (e.g., $10^{-4}$), increase `markov_inflation` (e.g., 500) |
+| **Persistent noise mismatch** | Increase `buffer_size` (e.g., 40), higher `inflation_cap` (e.g., 5.0) |
+| **Correlated noise** | Larger `inflation_rate` (e.g., 1.15) for faster adaptation |
+| **Gaussian baseline (good conditions)** | Use default parameters, minimal robustness needed |
 
 ### Understanding the Output
 
@@ -799,46 +840,51 @@ Videos provide an interactive replay of filter estimates over the reference traj
 1. **Run the simulation first** to generate result `.mat` files (see "How to Run").
 
 2. **Configure the video script:**
-   Open `scripts/run_video_case.m` and set the following variables:
+   Open `scripts/run_video_case.m` and set your desired parameters in the **USER CONFIGURATION** section:
+   
    ```matlab
-   % Example: Create a video for Robust EKF on Circular trajectory with baseline noise
+   % ========== USER CONFIGURATION ==========
+   
+   % SCENARIO_LABEL options:
+   % Baseline: 'baseline_gaussian'
+   % Correlated: 'correlated_rho0.3', 'correlated_rho0.5', 'correlated_rho0.7', 'correlated_rho0.9'
+   % Heavy-tail: 'heavytail_pi0.01_lambda10', 'heavytail_pi0.05_lambda10', 'heavytail_pi0.1_lambda10'
+   %             (change lambda to 5, 10, 20, etc. as needed)
    SCENARIO_LABEL = 'baseline_gaussian';
+   
+   % FILTER_TYPE options: 'KF', 'EKF', 'RobustKF', 'RobustEKF'
    FILTER_TYPE = 'RobustEKF';
-   TRAJECTORY = 'Circular';
-   RESULTS_MAT = 'results/baseline/Circular/baseline_gaussian_Circular_RobustEKF.mat';
+   
+   % TRAJECTORY options: 'Circular', 'Figure8', 'Spiral'
+   TRAJECTORY = 'Spiral';
    ```
+   
+   The results file path is **automatically determined** from these three variables.
 
 3. **Run the video script:**
    ```matlab
    run_video_case
    ```
-   The video is automatically saved to `video_exports/<scenario_label>_<filter>_<trajectory>.mp4`.
+
+   The video is automatically saved to `video_exports/<scenario_label>_<trajectory>_<filter_type>.mp4`.
 
 ### Video Contents
 
 Each frame displays:
-- **Blue curve:** True reference trajectory
-- **Red curve:** Estimated trajectory from the filter
-- **Ellipse:** 2-sigma confidence region (covariance ellipse) of position uncertainty
-- **Arrow:** Velocity direction indicator (heading and magnitude)
-- **Text:** Current step number, filter name, trajectory type, and cumulative MSE
+- **Green dotted curve:** True reference trajectory (full path for context)
+- **Red solid curve:** Estimated trajectory (grows as simulation progresses)
+- **Red circle:** Current estimated vehicle position
+- **Blue arrow:** Vehicle heading direction
+
+The video plays at 20 fps for fast, clear visualization of filter tracking performance.
 
 ### Output Location
 
 Videos are saved to:
 ```
-video_exports/<scenario_label>_<filter_type>_<trajectory>.mp4
+video_exports/<scenario_label>_<trajectory>_<filter_type>.mp4
 ```
-
-Example: `video_exports/baseline_gaussian_RobustEKF_Circular.mp4`
-
-### Video Options
-
-To customize video generation, edit `VideoRunner.m`:
-- Frame rate: Set `fps` (default 10 frames/second)
-- Video duration: Adjust playback speed by changing frame skip factor
-- Visualization parameters: Modify ellipse scaling, arrow size, and color schemes
 
 ### Caching
 
-Like result files, videos are not overwritten if they already exist. Delete the video file manually if you want to regenerate it with different parameters.
+Videos are not overwritten if they already exist. Delete the video file manually if you want to regenerate it.

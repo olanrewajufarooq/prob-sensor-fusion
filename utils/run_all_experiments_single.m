@@ -14,16 +14,32 @@ if contains(base_scenario_label, 'correlated')
     noise_name = 'Correlated Gaussian';
 elseif contains(base_scenario_label, 'heavytail')
     subfolder_name = 'heavytail';
-    R_nominal = diag([params.sigma_gps^2, params.sigma_gps^2]);
-    noise_model = MixtureNoise(R_nominal, params.pi_outlier, params.lambda);
-    sensors = {GPSSensor(noise_model)};
-    noise_name = 'Mixture/Heavy-Tail';
+    % GPS sensor with mixture/heavy-tail noise
+    R_gps = diag([params.sigma_gps^2, params.sigma_gps^2]);
+    noise_model_gps = MixtureNoise(R_gps, params.pi_outlier, params.lambda);
+    gps_sensor = GPSSensor(noise_model_gps);
+    
+    % Odometry sensor with standard Gaussian noise
+    R_odom = diag([params.sigma_odom^2, params.sigma_odom^2]);
+    noise_model_odom = GaussianNoise(R_odom);
+    odom_sensor = OdometrySensor(noise_model_odom);
+    
+    sensors = {gps_sensor, odom_sensor};
+    noise_name = 'Mixture/Heavy-Tail (GPS) + Gaussian (Odometry)';
 else 
     subfolder_name = 'baseline';
-    R_nominal = diag([params.sigma_gps^2, params.sigma_gps^2]);
-    noise_model = GaussianNoise(R_nominal);
-    sensors = {GPSSensor(noise_model)};
-    noise_name = 'Standard Gaussian';
+    % GPS sensor with standard Gaussian noise
+    R_gps = diag([params.sigma_gps^2, params.sigma_gps^2]);
+    noise_model_gps = GaussianNoise(R_gps);
+    gps_sensor = GPSSensor(noise_model_gps);
+    
+    % Odometry sensor with standard Gaussian noise
+    R_odom = diag([params.sigma_odom^2, params.sigma_odom^2]);
+    noise_model_odom = GaussianNoise(R_odom);
+    odom_sensor = OdometrySensor(noise_model_odom);
+    
+    sensors = {gps_sensor, odom_sensor};
+    noise_name = 'Standard Gaussian (Both Sensors)';
 end
 
     for t_idx = 1:length(trajectory_list)

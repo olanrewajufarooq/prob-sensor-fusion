@@ -1,6 +1,6 @@
 classdef VideoRunner
     properties (Constant)
-        FRAME_RATE = 10;
+        FRAME_RATE = 20;
         VIDEO_QUALITY = 75;
     end
 
@@ -40,11 +40,8 @@ classdef VideoRunner
                 trajectory_type = VideoRunner.inferTrajectoryFromLabel(scenario_label);
             end
 
-            if nargin < 5 || isempty(trajectory_generator)
-                traj_gen = TrajectoryGenerator(dt_vis, T_total, trajectory_type);
-            else
-                traj_gen = trajectory_generator;
-            end
+            % Derive noise_name from scenario_label
+            noise_name = VideoRunner.deriveNoiseName(scenario_label);
 
             if exist(video_path, 'file')
                 fprintf('Video already exists at %s. Skipping rendering.\n', video_path);
@@ -59,8 +56,7 @@ classdef VideoRunner
 
             figure('Position', [100, 100, 800, 700], 'Color', 'w');
             ax = gca;
-            title_str = sprintf('Localization: %s on %s (Path: %s | Noise: %s)', ...
-                                filter_name, strrep(scenario_label, '_', ' '), trajectory_type, noise_name);
+            title_str = sprintf('Localization: %s (Noise: %s)', filter_name, noise_name);
             title(ax, title_str);
             xlabel(ax, 'X Position [m]');
             ylabel(ax, 'Y Position [m]');
@@ -68,36 +64,36 @@ classdef VideoRunner
             grid on;
             hold on;
 
-            T_path = min(T_total, size(traj_gen.target_path, 1));
-            x_desired_path = traj_gen.target_path(1:T_path, :)';
+            % Preplot full true trajectory
+            true_full = plot(ax, x_history(1, :), x_history(2, :), ':', 'LineWidth', 1, 'Color', [0 0.5 0], 'DisplayName', 'True Path (Full)');
 
             for t = 1:T_total
-                cla(ax);
+                % Clear previous evolving path and dynamic elements
+                delete(findobj(ax, 'DisplayName', 'Est. Path (evolving)'));
+                delete(findobj(ax, 'DisplayName', 'Vehicle Position'));
+                delete(findobj(ax, 'DisplayName', 'Direction Arrow'));
 
-                desired_handle = plot(ax, x_desired_path(1,:), x_desired_path(2,:), 'k:', 'LineWidth', 0.5, 'DisplayName', 'Desired Path');
-                true_handle = plot(ax, x_history(1, 1:t), x_history(2, 1:t), 'g-', 'LineWidth', 1, 'DisplayName', 'True Path');
-                est_handle = plot(ax, x_hat_history(1, 1:t), x_hat_history(2, 1:t), 'r--', 'LineWidth', 1, 'DisplayName', 'Estimated Path');
+                % Replot evolving estimated path
+                est_evolv = plot(ax, x_hat_history(1, 1:t), x_hat_history(2, 1:t), '-', 'LineWidth', 2, 'Color', [1 0 0 1], 'DisplayName', 'Est. Path (evolving)');
 
-                plot(ax, x_history(1, t), x_history(2, t), 'go', 'MarkerFaceColor', 'g', 'MarkerSize', 6, 'DisplayName', 'True Vehicle');
-
-                plot(ax, x_hat_history(1, t), x_hat_history(2, t), 'rd', 'MarkerFaceColor', 'r', 'MarkerSize', 7, 'DisplayName', 'Estimated Position');
+                % Current position with circle marker
+                plot(ax, x_hat_history(1, t), x_hat_history(2, t), 'ro', 'MarkerSize', 8, 'DisplayName', 'Vehicle Position');
                 
-                if t <= numel(P_history) && ~isempty(P_history{t})
-                    Plotter.plotCovarianceEllipse(x_hat_history(1:2, t), P_history{t}(1:2, 1:2), 2);
-                end
+                % Direction arrow from position
+                theta = x_hat_history(3, t);
+                arrow_len = 0.5;
+                quiver(ax, x_hat_history(1, t), x_hat_history(2, t), ...
+                       arrow_len*cos(theta), arrow_len*sin(theta), ...
+                       'Color', 'b', 'LineWidth', 1.5, 'MaxHeadSize', 0.4, 'AutoScale', 'off', 'DisplayName', 'Direction Arrow');
 
-                v_mag = x_history(4, t);
-                theta = x_history(3, t);
-                vel_handle = quiver(ax, x_history(1, t), x_history(2, t), v_mag*cos(theta), v_mag*sin(theta), ...
-                                    'Color', 'b', 'LineWidth', 1, 'MaxHeadSize', 2, 'AutoScale', 'off', 'DisplayName', 'Velocity');
-
-                text(ax, min(x_desired_path(1,:)), max(x_desired_path(2,:)) + 5, ...
-                    sprintf('Time: %.1fs\nSpeed Cmd: %.2f m/s\nTurn Cmd: %.2f rad/s', ...
-                            t * dt_vis, u_history(1, min(t, size(u_history,2))), u_history(2, min(t, size(u_history,2)))), ...
-                    'BackgroundColor', [1 1 1 0.7], 'FontSize', 8, 'EdgeColor', 'k', 'VerticalAlignment', 'top');
-
-                title(ax, sprintf('%s (Time: %.1fs)', title_str, t * dt_vis));
-                legend(ax, [desired_handle, true_handle, est_handle, vel_handle], {'Desired Path', 'True Path', 'Estimated Path', 'Velocity'}, 'Location', 'best');
+                % Update title with time
+                title(ax, sprintf('%s | Time: %.1fs', title_str, t * dt_vis));
+                
+                % Add legend
+                legend(ax, [true_full, est_evolv], ...
+                       {'True Path (Full)', 'Est. Path (Evolving)'}, ...
+                       'Location', 'best');
+                
                 frame = getframe(gcf);
                 writeVideo(vid_writer, frame);
             end
@@ -116,5 +112,36 @@ classdef VideoRunner
                 trajectory_type = 'Circular';
             end
         end
+
+        function noise_name = deriveNoiseName(scenario_label)
+            % Derive human-readable noise description from scenario label
+            if contains(scenario_label, 'correlated')
+                if contains(scenario_label, 'rho0.9')
+                    noise_name = 'Correlated Gaussian (ρ=0.9)';
+                elseif contains(scenario_label, 'rho0.7')
+                    noise_name = 'Correlated Gaussian (ρ=0.7)';
+                elseif contains(scenario_label, 'rho0.5')
+                    noise_name = 'Correlated Gaussian (ρ=0.5)';
+                elseif contains(scenario_label, 'rho0.3')
+                    noise_name = 'Correlated Gaussian (ρ=0.3)';
+                else
+                    noise_name = 'Correlated Gaussian';
+                end
+            elseif contains(scenario_label, 'heavytail')
+                if contains(scenario_label, 'pi0.1')
+                    noise_name = 'Heavy-Tail Mixture (π=0.1)';
+                elseif contains(scenario_label, 'pi0.05')
+                    noise_name = 'Heavy-Tail Mixture (π=0.05)';
+                elseif contains(scenario_label, 'pi0.01')
+                    noise_name = 'Heavy-Tail Mixture (π=0.01)';
+                else
+                    noise_name = 'Heavy-Tail Mixture';
+                end
+            else
+                % Baseline
+                noise_name = 'Standard Gaussian';
+            end
+        end
+
     end
 end

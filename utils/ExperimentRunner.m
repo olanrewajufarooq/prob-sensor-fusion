@@ -7,18 +7,36 @@ classdef ExperimentRunner
         N_trials
         Trajectory
         Controller
+        robust_config      % Configuration for robust filters
     end
     
     methods
-        function obj = ExperimentRunner(dynamics, sensors, T, N_trials, pid_params, trajectory_type)
+        function obj = ExperimentRunner(dynamics, sensors, T, N_trials, pid_params, trajectory_type, varargin)
             obj.dynamics = dynamics;
             obj.sensors = sensors;
             obj.T = T;
             obj.N_trials = N_trials;
             
             obj.Trajectory = TrajectoryGenerator(dynamics.dt, T, trajectory_type);
-            
             obj.Controller = PIDController(pid_params.Kp, pid_params.Ki, pid_params.Kd);
+            
+            % Default robust configuration
+            obj.robust_config = struct();
+            obj.robust_config.delta = 1e-3;
+            obj.robust_config.buffer_size = 20;
+            obj.robust_config.inflation_cap = 3.0;
+            obj.robust_config.inflation_rate = 1.05;
+            obj.robust_config.deflation_rate = 0.99;
+            obj.robust_config.markov_inflation = 100;
+            
+            % Parse optional configuration
+            if ~isempty(varargin)
+                config = varargin{1};
+                fields = fieldnames(config);
+                for i = 1:length(fields)
+                    obj.robust_config.(fields{i}) = config.(fields{i});
+                end
+            end
         end
         
         function results = run(obj, filter_name)
@@ -39,11 +57,23 @@ classdef ExperimentRunner
                     case 'KF'
                         filter = KF(obj.dynamics, obj.sensors, x0, P0);
                     case 'RobustKF'
-                        filter = RobustKF(obj.dynamics, obj.sensors, x0, P0);
+                        filter = RobustKF(obj.dynamics, obj.sensors, x0, P0, ...
+                            'delta', obj.robust_config.delta, ...
+                            'buffer_size', obj.robust_config.buffer_size, ...
+                            'inflation_cap', obj.robust_config.inflation_cap, ...
+                            'inflation_rate', obj.robust_config.inflation_rate, ...
+                            'deflation_rate', obj.robust_config.deflation_rate, ...
+                            'markov_inflation', obj.robust_config.markov_inflation);
                     case 'EKF'
                         filter = ExtendedKalmanFilter(obj.dynamics, obj.sensors, x0, P0);
                     case 'RobustEKF'
-                        filter = RobustEKF(obj.dynamics, obj.sensors, x0, P0);
+                        filter = RobustEKF(obj.dynamics, obj.sensors, x0, P0, ...
+                            'delta', obj.robust_config.delta, ...
+                            'buffer_size', obj.robust_config.buffer_size, ...
+                            'inflation_cap', obj.robust_config.inflation_cap, ...
+                            'inflation_rate', obj.robust_config.inflation_rate, ...
+                            'deflation_rate', obj.robust_config.deflation_rate, ...
+                            'markov_inflation', obj.robust_config.markov_inflation);
                     otherwise
                         error('Unknown filter type: %s', filter_name);
                 end
@@ -77,7 +107,7 @@ classdef ExperimentRunner
                     trial_x_hat(:, t) = filter.x_hat;
                     trial_u(:, t) = u_t;
                     
-                    u_t_prev = u_t; 
+                    u_t_prev = u_t;
                 end
                 
                 results.errors(:, :, trial) = trial_errors;
