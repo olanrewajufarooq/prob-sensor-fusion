@@ -69,14 +69,15 @@ classdef RobustEKF < ExtendedKalmanFilter
                 R_filt = sensor.noise_model.R;
             end
 
-            % ===== DEFENSE 2: Chronic Inconsistency - Apply inflation BEFORE update =====
-            % When chronic inconsistency is detected, inflate R to reduce filter gain
-            % This maintains filter stability by properly adjusting the innovation covariance
-            R_chronic = R_filt * obj.inflation_factor;
+            % ===== DEFENSE 2: Chronic Inconsistency - Inflate P BEFORE update =====
+            % When chronic inconsistency is detected (inflation_factor > 1), inflate prior
+            % covariance BEFORE computing Kalman gain. This properly increases uncertainty
+            % in the state estimate while maintaining the standard Kalman update equations.
+            P_inflated = obj.P * obj.inflation_factor;
             
             % Compute innovation using prior (predicted) state
             innovation = z - H * obj.x_hat;
-            S_nominal = H * obj.P * H' + R_chronic;
+            S_nominal = H * P_inflated * H' + R_filt;
             
             % ===== DEFENSE 1: Acute Outlier Rejection (Markov-based) =====
             expected_sq_norm = trace(S_nominal);
@@ -85,17 +86,17 @@ classdef RobustEKF < ExtendedKalmanFilter
             current_sq_norm = innovation' * innovation;
             if current_sq_norm > markov_threshold
                 % Outlier detected: inflate measurement noise to downweight this measurement
-                R_used = R_chronic * obj.markov_inflation_factor;  %#ok<NASGU>
-                S = H * obj.P * H' + R_used;
+                R_used = R_filt * obj.markov_inflation_factor;
+                S = H * P_inflated * H' + R_used;
             else
-                R_used = R_chronic;  %#ok<NASGU> % Nominal case with chronic inflation applied
+                R_used = R_filt;  %#ok<NASGU>
                 S = S_nominal;
             end
             
-            % Standard Kalman update with properly adjusted R
-            K = obj.P * H' / S;
+            % Standard Kalman update with inflated prior covariance
+            K = P_inflated * H' / S;
             obj.x_hat = obj.x_hat + K * innovation;
-            obj.P = (eye(size(obj.P)) - K * H) * obj.P;
+            obj.P = (eye(size(obj.P)) - K * H) * P_inflated;
             obj.P = 0.5 * (obj.P + obj.P');  % Enforce symmetry
             
             % ===== Update chronic inconsistency detection state =====
