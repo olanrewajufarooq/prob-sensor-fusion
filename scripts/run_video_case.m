@@ -21,7 +21,7 @@ VIDEO_FOLDER = 'video_exports';
 %   - 'heavytail_pi0.01_lambda5'
 %   - 'heavytail_pi0.05_lambda5'
 %   - 'heavytail_pi0.10_lambda5'
-SCENARIO_LABEL = 'heavytail_pi0.05_lambda5';
+SCENARIO_LABEL = 'baseline_gaussian';
 
 % FILTER_TYPE: Filtering algorithm
 %   - 'KF'          (Kalman Filter - linear only)
@@ -58,6 +58,7 @@ RESULTS_MAT = PathHelper.ensurePath('results', fullfile(regime, TRAJECTORY), res
 
 fprintf('=== Generating Video Visualization ===\n');
 fprintf('Scenario: %s | Filter: %s | Trajectory: %s\n', SCENARIO_LABEL, FILTER_TYPE, TRAJECTORY);
+fprintf('Results MAT File: %s\n', RESULTS_MAT)
 
 % Check if results file exists
 if ~isfile(RESULTS_MAT)

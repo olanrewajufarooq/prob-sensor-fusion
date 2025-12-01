@@ -16,29 +16,49 @@ classdef VideoRunner
                 error('No stored results provided for %s. Please run the simulation first to generate results.', scenario_label);
             end
 
-            x_history = results.traj_true{1};
-            x_hat_history = results.traj_hat{1};
-            if isfield(results, 'P_history') && ~isempty(results.P_history)
-                P_history = results.P_history{1};
-            else
-                P_history = cell(1, size(x_history, 2));
-            end
-            if isfield(results, 'u_history') && ~isempty(results.u_history)
-                u_history = results.u_history{1};
-            else
-                u_history = zeros(2, size(x_history, 2)); % controls: [v; omega]
-            end
-            T_total = size(x_history, 2);
-            if isfield(results, 'dt') && ~isempty(results.dt)
-                dt_vis = results.dt;
-            else
-                dt_vis = 0.1;
-            end
+            % Use desired trajectory and computed estimates (same as plots), not actual simulated trajectories
+            % This ensures consistency between plots/ and video_exports/
             if isfield(results, 'trajectory_type') && ~isempty(results.trajectory_type)
                 trajectory_type = results.trajectory_type;
             elseif nargin < 3 || isempty(trajectory_type)
                 trajectory_type = VideoRunner.inferTrajectoryFromLabel(scenario_label);
             end
+            
+            % Get dt from results or use default
+            if isfield(results, 'dt') && ~isempty(results.dt)
+                dt_sim = results.dt;
+            else
+                dt_sim = 0.1;
+            end
+            
+            T_total = size(results.traj_true{1}, 2);
+            
+            % Create trajectory generator with proper parameters
+            % T parameter is number of steps
+            tg = TrajectoryGenerator(dt_sim, T_total, trajectory_type);
+            
+            % Get desired trajectory from trajectory generator
+            x_desired = zeros(4, T_total);
+            for k = 1:T_total
+                x_desired(:, k) = tg.getDesiredState(k);
+            end
+            
+            % Compute x_hat from desired trajectory and errors (same as plots)
+            x_history = x_desired;
+            x_hat_history = x_desired - results.errors(:, 1:T_total, 1);
+            
+            if isfield(results, 'P_history') && ~isempty(results.P_history)
+                P_history = results.P_history{1};
+            else
+                P_history = cell(1, T_total);
+            end
+            if isfield(results, 'u_history') && ~isempty(results.u_history)
+                u_history = results.u_history{1};
+            else
+                u_history = zeros(2, T_total); % controls: [v; omega]
+            end
+            
+            dt_vis = dt_sim;
 
             % Derive noise_name from scenario_label
             noise_name = VideoRunner.deriveNoiseName(scenario_label);
