@@ -59,8 +59,6 @@ classdef RobustEKF < ExtendedKalmanFilter
         end
         
         function [obj, innovation, S] = update(obj, z, sensor_idx)
-            [obj, innovation, S_nominal] = update@ExtendedKalmanFilter(obj, z, sensor_idx);
-            
             sensor = obj.sensors{sensor_idx};
             H = sensor.H;
 
@@ -70,6 +68,15 @@ classdef RobustEKF < ExtendedKalmanFilter
             else
                 R_filt = sensor.noise_model.R;
             end
+
+            % ===== DEFENSE 2: Chronic Inconsistency - Apply inflation BEFORE update =====
+            % When chronic inconsistency is detected, inflate R to reduce filter gain
+            % This maintains filter stability by properly adjusting the innovation covariance
+            R_chronic = R_filt * obj.inflation_factor;
+            
+            % Compute innovation using prior (predicted) state
+            innovation = z - H * obj.x_hat;
+            S_nominal = H * obj.P * H' + R_chronic;
             
             % ===== DEFENSE 1: Acute Outlier Rejection (Markov-based) =====
             expected_sq_norm = trace(S_nominal);
@@ -78,23 +85,20 @@ classdef RobustEKF < ExtendedKalmanFilter
             current_sq_norm = innovation' * innovation;
             if current_sq_norm > markov_threshold
                 % Outlier detected: inflate measurement noise to downweight this measurement
-                R_used = R_filt * obj.markov_inflation_factor;
-                S_outlier = H * obj.P * H' + R_used;
-                S = S_outlier;
+                R_used = R_chronic * obj.markov_inflation_factor;  %#ok<NASGU>
+                S = H * obj.P * H' + R_used;
             else
-                R_used = R_filt; 
+                R_used = R_chronic;  %#ok<NASGU> % Nominal case with chronic inflation applied
                 S = S_nominal;
             end
             
-            % If outlier detected, redo the Kalman update with inflated R
-            if ~isequal(R_used, R_filt)
-                K = obj.P * H' / S;
-                obj.x_hat = obj.x_hat + K * innovation;
-                obj.P = (eye(size(obj.P)) - K * H) * obj.P;
-                obj.P = 0.5 * (obj.P + obj.P');  % Enforce symmetry
-            end
+            % Standard Kalman update with properly adjusted R
+            K = obj.P * H' / S;
+            obj.x_hat = obj.x_hat + K * innovation;
+            obj.P = (eye(size(obj.P)) - K * H) * obj.P;
+            obj.P = 0.5 * (obj.P + obj.P');  % Enforce symmetry
             
-            % ===== DEFENSE 2: Chronic Inconsistency Detection (Chebyshev-based) =====
+            % ===== Update chronic inconsistency detection state =====
             nis = innovation' / S * innovation;
 
             if obj.enable_inflation
@@ -105,18 +109,17 @@ classdef RobustEKF < ExtendedKalmanFilter
                     obj.nis_buffer(1) = [];
                 end
                 
-                % Check consistency when window is full
+                % Check consistency when window is full and update inflation factor for NEXT step
                 if length(obj.nis_buffer) == obj.buffer_size
                     nis_mean = mean(obj.nis_buffer);
                     nz = size(innovation, 1);
                     
-                    % Chebyshev threshold with increased margin for more aggressive detection
+                    % Chebyshev threshold for detecting chronic inconsistency
                     consistency_threshold = nz * (1 + 2 * sqrt(1/obj.buffer_size));
                     
                     if nis_mean > consistency_threshold
-                        % Chronic underestimation: inflate state covariance
+                        % Chronic underestimation: increase inflation factor for next step
                         obj.inflation_factor = min(obj.inflation_cap, obj.inflation_factor * obj.inflation_rate);
-                        obj.P = obj.inflation_factor * obj.P;
                     else
                         % Consistent: allow gradual deflation
                         obj.inflation_factor = max(1.0, obj.inflation_factor * obj.deflation_rate);
