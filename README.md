@@ -1,7 +1,9 @@
 # Probabilistic Guarantees for Sensor Fusion under Noise Mis-Specification
-### Kalman, EKF, and NIS-Driven Robust Variants on Unicycle Dynamics
+
+Kalman, EKF, and NIS-Driven Robust Variants on Unicycle Dynamics
 
 ## Table of Contents
+
 - [1. Project Overview](#1-project-overview)
 - [2. Dynamics](#2-dynamics)
 - [3. Trajectories](#3-trajectories)
@@ -112,7 +114,7 @@ p_x = R\cos(\omega t),\quad p_y = R\sin(\omega t)
 $$
 
 $$
-\theta = \operatorname{atan2}(\dot p_y,\dot p_x),\quad v = \sqrt{\dot p_x^2+\dot p_y^2}
+\theta = \text{atan2}(\dot p_y,\dot p_x),\quad v = \sqrt{\dot p_x^2+\dot p_y^2}
 $$
 
 ### Figure-8 Trajectory
@@ -142,6 +144,7 @@ p_x = R\sin(2\omega t)\cos(\omega t),\quad p_y = R\sin(\omega t)\cos(2\omega t)
 $$
 
 This trajectory combines two oscillation frequencies to create sharp, unpredictable turns and rapid heading changes. It is designed to expose the limitations of the standard EKF by creating scenarios where:
+
 - **Linearization errors accumulate** due to extreme curvature
 - **Filter divergence is likely** without adaptive mechanisms
 - **RobustEKF's covariance adaptation** should significantly improve performance
@@ -302,11 +305,11 @@ When a single measurement is extreme (large residual), we detect and downweight 
 **Threshold Computation:**
 
 $$
-\mathbb{E}[\|r\|^2] \approx \operatorname{tr}(S)
+\mathbb{E}[\|r\|^2] \approx \text{tr}(S)
 $$
 
 $$
-T = \frac{\operatorname{tr}(S)}{\delta}
+T = \frac{\text{tr}(S)}{\delta}
 $$
 
 with $\delta = 10^{-3}$.
@@ -422,7 +425,7 @@ This ensures that an outlier (measurement exceeding the threshold) occurs with p
 **Practical Estimation:** We approximate $\mathbb{E}[\|r\|^2]$ by the trace of the innovation covariance:
 
 $$
-\mathbb{E}[\|r\|^2] \approx \operatorname{tr}(S) = \operatorname{tr}(H P^- H^\top + R)
+\mathbb{E}[\|r\|^2] \approx \text{tr}(S) = \text{tr}(H P^- H^\top + R)
 $$
 
 This approximation holds when the residuals are approximately centered at zero (filter is consistent).
@@ -452,19 +455,19 @@ Under nominal conditions (filter is consistent), $\mathbb{E}[\nu] = nz$ (the mea
 The variance of the window mean is:
 
 $$
-\operatorname{Var}(\bar\nu) = \frac{\operatorname{Var}(\nu)}{W}
+\bar{\nu} = \frac{\nu}{W}
 $$
 
-Under Gaussian assumptions, $\operatorname{Var}(\nu) \approx 2 nz^2$, so:
+Under Gaussian assumptions, $\nu \approx 2 nz^2$, so:
 
 $$
-\operatorname{Var}(\bar\nu) \approx \frac{2 nz^2}{W}
+\bar{\nu} \approx \frac{2 nz^2}{W}
 $$
 
 Therefore:
 
 $$
-\sigma_{\bar\nu} = \sqrt{\operatorname{Var}(\bar\nu)} \approx nz\sqrt{\frac{2}{W}}
+\sigma_{\bar\nu} = \sqrt{\bar{\nu}} \approx nz\sqrt{\frac{2}{W}}
 $$
 
 **Trigger Threshold:**
@@ -501,7 +504,7 @@ $$
 
 | Mechanism | Inequality | Detection | Response |
 |-----------|-----------|-----------|----------|
-| **Acute Outliers** | Markov | $\|r\|^2 > \frac{\operatorname{tr}(S)}{\delta}$ | Inflate $R$ for that step |
+| **Acute Outliers** | Markov | $\|r\|^2 > \frac{\text{tr}(S)}{\delta}$ | Inflate $R$ for that step |
 | **Chronic Underestimation** | Chebyshev | $\bar\nu > nz(1+2\sqrt{\frac{2}{W}})$ | Gradually inflate $P$ over time |
 
 Both mechanisms are **distribution-agnostic**: they depend only on the mean (and variance for Chebyshev), not on the specific shape of the noise distribution. This allows them to provide robustness against heavy-tailed, correlated, and other non-Gaussian noise models without explicit knowledge of the true distribution.
@@ -637,11 +640,11 @@ All scenarios use the following parameters (defined in `params_*.m` files):
 The robot has two sensors:
 
 1. **GPS (Position Sensor):** 
-   - Measures $[p_x, p_y]$ with covariance $R_{\text{GPS}}$ (typically $\operatorname{diag}(0.1^2, 0.1^2)$).
+   - Measures $[p_x, p_y]$ with covariance $R_{\text{GPS}}$ (typically $\text{diag}(0.1^2, 0.1^2)$).
    - Measurement noise is Gaussian (in baseline) or correlated/heavy-tail (in other regimes).
 
 2. **Odometry (Velocity Sensor):**
-   - Measures $[v, \omega]$ (forward speed and yaw rate) with covariance $R_{\text{odo}}$ (typically $\operatorname{diag}(0.05^2, 0.05^2)$).
+   - Measures $[v, \omega]$ (forward speed and yaw rate) with covariance $R_{\text{odo}}$ (typically $\text{diag}(0.05^2, 0.05^2)$).
    - Subject to the same noise regimes as GPS.
 
 Both sensors are fused into a combined measurement $z = [p_x, p_y, v, \omega]^T$.
@@ -651,10 +654,10 @@ Both sensors are fused into a combined measurement $z = [p_x, p_y, v, \omega]^T$
 Process noise covariance:
 
 $$
-Q = \operatorname{diag}(q_1^2, q_2^2, q_3^2, q_4^2)
+Q = \text{diag}(q_1^2, q_2^2, q_3^2, q_4^2)
 $$
 
-where $q_i$ values are set to reflect model uncertainty (typically $Q = \operatorname{diag}(0.01^2, 0.01^2, 0.01^2, 0.01^2)$).
+where $q_i$ values are set to reflect model uncertainty (typically $Q = \text{diag}(0.01^2, 0.01^2, 0.01^2, 0.01^2)$).
 
 ### Output and Storage
 
