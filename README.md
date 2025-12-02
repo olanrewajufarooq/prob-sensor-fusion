@@ -30,6 +30,8 @@ We study localization under noise mis-specification on a unicycle robot with PID
 
 The core contribution is demonstrating that distribution-agnostic robustness mechanisms (Markov-based outlier rejection and Chebyshev-based covariance inflation) can mitigate performance degradation under heavy-tailed and correlated noise, while maintaining theoretical guarantees without knowledge of the true noise distribution.
 
+[Return to Table of Contents](#table-of-contents)
+
 ---
 
 ## 2. Dynamics
@@ -103,6 +105,8 @@ $$
 
 This linear model ignores the nonlinear coupling of position with heading and velocity, and is used only by the standard KF. In contrast, the Extended Kalman Filter (EKF) uses the nonlinear unicycle dynamics that properly capture how velocity and heading determine position changes.
 
+[Return to Table of Contents](#table-of-contents)
+
 ---
 
 ## 3. Trajectories
@@ -150,6 +154,8 @@ This trajectory combines two oscillation frequencies to create sharp, unpredicta
 - **RobustEKF's covariance adaptation** should significantly improve performance
 
 This trajectory is ideal for demonstrating when robust filtering becomes necessary.
+
+[Return to Table of Contents](#table-of-contents)
 
 ## 4. Filters
 
@@ -376,6 +382,8 @@ $$
 
 **Rationale:** Markov handles rare, extreme residuals by inflating R; Chebyshev handles persistent underestimation by inflating P over time. Both mechanisms are distribution-agnostic (rely only on moments) and enable the filter to adapt without knowledge of the true noise distribution.
 
+[Return to Table of Contents](#table-of-contents)
+
 ---
 
 ## 5. Robustness Rationale (Markov and Chebyshev)
@@ -509,6 +517,8 @@ $$
 
 Both mechanisms are **distribution-agnostic**: they depend only on the mean (and variance for Chebyshev), not on the specific shape of the noise distribution. This allows them to provide robustness against heavy-tailed, correlated, and other non-Gaussian noise models without explicit knowledge of the true distribution.
 
+[Return to Table of Contents](#table-of-contents)
+
 ---
 
 ## 6. Theoretical Metrics (NEES vs NIS)
@@ -574,6 +584,8 @@ where $r_t = z_t - H x_t^-$ is the innovation (measurement residual) and $S_t = 
 - NIS is used **within the filter** (during simulation) to drive the Markov and Chebyshev adaptive mechanisms.
 - NEES is used **after simulation** to validate overall filter performance and covariance calibration.
 - In a real deployment, only NIS would be available, but NIS alone suffices to maintain robustness via the adaptive covariance mechanisms.
+
+[Return to Table of Contents](#table-of-contents)
 
 ---
 
@@ -681,6 +693,8 @@ where $q_i$ values are set to reflect model uncertainty (typically $Q = \text{di
 5. **Error Histograms:** Distribution of position and velocity errors.
 6. **Trajectory Plots:** Overlay of true and estimated paths with confidence ellipses.
 
+[Return to Table of Contents](#table-of-contents)
+
 ---
 
 ## 8. Project Structure
@@ -696,6 +710,8 @@ prob-sensor-fusion/
 ├ plots/          % Generated PNG figures
 └ video_exports/  % Generated videos
 ```
+
+[Return to Table of Contents](#table-of-contents)
 
 ---
 
@@ -856,6 +872,8 @@ To modify experiments (e.g., change noise parameters or trajectory), edit the pa
 
 After editing, re-run the experiment script. Existing result files with the same label will not be overwritten; delete them manually if you want to recompute.
 
+[Return to Table of Contents](#table-of-contents)
+
 ---
 
 ## 10. Video Guide
@@ -937,3 +955,5 @@ video_exports/<scenario_label>_<trajectory>_<filter_type>.mp4
 ### Caching
 
 Videos are not overwritten if they already exist. Delete the video file manually if you want to regenerate it.
+
+[Return to Table of Contents](#table-of-contents)
