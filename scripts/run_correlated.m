@@ -9,7 +9,7 @@ setup_paths();
 fprintf('=== Running Correlated Noise Sweep Experiments ===\n');
 
 % Test multiple correlation values (Rho = 0 is equivalent to baseline noise assumption)
-rho_values = [0.3, 0.5, 0.7, 0.9];
+rho_values = [0.3, 0.7];
 
 for i = 1:length(rho_values)
     rho = rho_values(i);

@@ -16,10 +16,18 @@ pi_outlier = 0.05;  % Fixed outlier probability
 trajectory_list = {'Circular', 'HighCurvature'};
 
 % Delta values (1 - confidence level) for RobustEKF constructor
-delta_values = [0.10, 0.05, 0.01];
+delta_values = [
+    % 0.10, 
+    0.05, 
+    0.01
+    ];
 
 % Lambda values (outlier scale) for mixture noise
-lambda_values = [5, 10, 20];
+lambda_values = [
+    5, 
+    % 10, 
+    20
+    ];
 
 subfolder = 'plots/robust_sweep';
 

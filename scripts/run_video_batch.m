@@ -14,14 +14,14 @@ setup_paths();
 
 % MODE 1: Single Trajectory (4 videos)
 % Uncomment this block to generate videos for one trajectory only
-MODE = 'SINGLE_TRAJECTORY';
-SCENARIO_LABEL = 'baseline_gaussian';
-TRAJECTORY = 'Circular';
+% MODE = 'SINGLE_TRAJECTORY';
+% SCENARIO_LABEL = 'baseline_gaussian';
+% TRAJECTORY = 'Circular';
 
 % MODE 2: All Trajectories (16 videos)
 % Uncomment this block to generate videos for all trajectories
-% MODE = 'ALL_TRAJECTORIES';
-% SCENARIO_LABEL = 'baseline_gaussian';
+MODE = 'ALL_TRAJECTORIES';
+SCENARIO_LABEL = 'baseline_gaussian';
 
 VIDEO_FOLDER = 'video_exports';
 

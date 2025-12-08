@@ -9,7 +9,7 @@ classdef VideoBatchRunner
     %   % Generates videos for KF, EKF, RobustKF, RobustEKF on Spiral trajectory
     
     methods (Static)
-        function generateVideosForAllFilters(scenario_label, trajectory, video_folder)
+        function num_generated = generateVideosForAllFilters(scenario_label, trajectory, video_folder)
             % GENERATEVIDEOSFORALLFILTERS Generate videos for all 4 filter types.
             %
             % Parameters:
